@@ -7,14 +7,17 @@ import datetime
 
 app = Flask(__name__)
 
-def get_db(autocommit): #idk about autocommit stuff rn
+def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect("leaderboard.db", autocommit=autocommit)
+        db = g._database = sqlite3.connect("leaderboard.db")
     return db
 
 def isnan(num):
     return num != num
+
+def randcookie():
+    return ''.join(secrets.choice("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890") for _ in range(32))
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -27,9 +30,10 @@ def leaderboard_register():
     name = request.form.get("name", "")
     if len(name) < 1 or len(name) > 32 or len(name.encode('utf-8')) > 32:
         return "name too big or too small", 400
-    cookie = ''.join(secrets.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", k=32))
-    cur = get_db(True).cursor()
-    cur.execute("INSERT INTO clickers(name, cookie) VALUES (?,?,0,0);", (name, cookie))
+    cookie = randcookie()
+    cur = get_db().cursor()
+    cur.execute("INSERT INTO clickers(name, cookie) VALUES (?,?);", (name, cookie))
+    get_db().commit()
     return cookie, 200
 
 @app.route('/er/leaderboard/create', methods=['POST'])
@@ -40,15 +44,14 @@ def leaderboard_create():
     name = request.headers.get('X-My-Leaderboard-Name', '')
     if len(name) < 1 or len(name) > 32 or len(name.encode('utf-8')) > 32:
         return "name too big or too small", 400
-    boardcookie = ''.join(secrets.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", k=32))
-    cur = get_db(True).cursor()
+    boardcookie = randcookie()
+    cur = get_db().cursor()
     cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
     if 5 <= cur.execute("SELECT COUNT(*) FROM joinedboards WHERE clicker = ?", (cid,)).fetchone()[0]:
         return "in too many boards", 400
-    cur.executescript("""
-        INSERT INTO boards(name, owner, cookie) VALUES (?,?,?);
-        INSERT INTO joinedboards(owner, board) VALUES (?, last_insert_rowid());
-    """, (name, cid, boardcookie,  cid))
+    cur.execute("INSERT INTO boards(name, owner, cookie, only_owner_cookie) VALUES (?,?,?,0);", (name, cid, boardcookie))
+    cur.execute("INSERT INTO joinedboards(clicker, board) VALUES (?, last_insert_rowid());", (cid,))
+    get_db().commit()
     return "", 200
 
 @app.route('/er/leaderboard/updateme', methods=['POST'])
@@ -61,8 +64,9 @@ def leaderboard_updateme():
     cookies_per_second = float(data[1])
     if isnan(total_cookies) or total_cookies < 0 or isnan(cookies_per_second) or cookies_per_second < 0:
         raise Exception("nan or less than 0")
-    cur = get_db(True).cursor()
+    cur = get_db().cursor()
     cur.execute("UPDATE clickers SET total_cookies = ?, cookies_per_second = ? WHERE cookie = ?", (total_cookies, cookies_per_second, cookie))
+    get_db().commit()
     if cur.rowcount > 0:
         return "updated", 200
     else:
@@ -73,6 +77,7 @@ def leaderboard_query():
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "", 401
+    cur = get_db().cursor()
     cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
     res = cur.execute("""
         SELECT j.board, c.name, c.total_cookies, c.cookies_per_second
@@ -84,23 +89,19 @@ def leaderboard_query():
     boards = cur.execute("SELECT b.id, b.name FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ?", (cid,)).fetchall()
     return jsonify(crud=res,boards=boards)
 
-@app.route('/er/leaderboard/leave')
+@app.route('/er/leaderboard/leave', methods=['POST'])
 def leaderboard_leave():
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "a", 401
     boardid = int(request.headers.get('X-My-Leaderboard-ID', ''))
-    cur = get_db(True).cursor()
+    cur = get_db().cursor()
     # lol... atomicity and transactions? never heard of them...
     clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
     ownerid = cur.execute("SELECT owner FROM boards WHERE id = ?", (boardid,)).fetchone()[0]
     if clickerid == ownerid:
-        cur.executescript("""
-            BEGIN;
-            DELETE FROM joinedboards WHERE boardid = ?;
-            DELETE FROM boards WHERE id = ?;
-            COMMIT;
-        """, (boardid, boardid))
+        cur.execute("DELETE FROM joinedboards WHERE board = ?;", (boardid,))
+        cur.execute("DELETE FROM boards WHERE id = ?;", (boardid,))
     else:
         cur.execute("DELETE FROM joinedboards WHERE board = ? AND clicker = ?", (boardid, clickerid))
         # IDK if this below even works:
@@ -109,6 +110,7 @@ def leaderboard_leave():
         #    LEFT JOIN clickers c ON c.cookie = ?
         #    WHERE board = ? AND clicker = c.id
         #""", (cookie, boardid))
+    get_db().commit()
     return "left", 200
 
 @app.route('/er/leaderboard/join', methods=['POST'])
@@ -119,13 +121,14 @@ def leaderboard_join():
     boardcookie = request.headers.get('X-My-Leaderboard-Cookie', '')
     if len(boardcookie) != 32:
         return "b", 401
-    cur = get_db(True).cursor()
+    cur = get_db().cursor()
     cur.execute("""
         INSERT INTO joinedboards (cid, bid)
         SELECT clickers.id as cid, boards.id as bid
         FROM clickers WHERE cookie = ?
         JOIN boards on boards.cookie = ?
     """, (cookie, boardcookie))
+    get_db().commit()
     if cur.rowcount > 0:
         return "joined", 200
     else:
@@ -135,7 +138,7 @@ def make_db():
     db = sqlite3.connect("leaderboard.db")
     cur = db.cursor()
     cur.executescript("""
-        CREATE TABLE clickers (id INTEGER PRIMARY KEY, name TEXT NOT NULL, cookie TEXT NOT NULL, total_cookies REAL NOT NULL, cookies_per_second REAL NOT NULL);
+        CREATE TABLE clickers (id INTEGER PRIMARY KEY, name TEXT NOT NULL, cookie TEXT NOT NULL, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0);
         CREATE TABLE boards (id INTEGER PRIMARY KEY, name TEXT NOT NULL, owner INT NOT NULL, cookie TEXT NOT NULL, only_owner_cookie INT NOT NULL);
         CREATE TABLE joinedboards (clicker INT NOT NULL, board INT NOT NULL);
         
@@ -145,5 +148,5 @@ def make_db():
     db.commit()
 
 if __name__ == '__main__':
-    make_db()
-    #app.run(host='127.0.0.1', port=12345)
+    #make_db()
+    app.run(host='127.0.0.1', port=12345)
