@@ -17,19 +17,26 @@ Game.registerMod("hotInTopeka", {
 		} else if (temperature >= 70) {
 			return "MILD";
 		} else if (temperature >= 62) {
-			return "PERFECT";
-		} else {
+			return "NICE";
+		} else if (temperature >= 45) {
 			return "COLD";
+		} else {
+			return "FREEZING";
 		}
 	},
 	updateTheThing: function() {
 		fetch("https://c.ookie.click/er/topeka")
 			.then(response => {
-				if (response.ok) {
-					this.last = this.isItHot(+response.text);
-					l('hotInTopeka').innerHTML = "Topeka?<br>"+this.last;
-				}
-			});
+				if (response.ok)
+					return response.text();
+				else
+					throw Error(response.statusText);
+			})
+			.then(response => {
+				this.last = this.isItHot(+response);
+				l('hotInTopeka').innerHTML = "Topeka?<br>"+this.last;
+			})
+			.catch(err => console.log("hotInTopeka error: "+err));
 	},
 	save:function() {
 		return "";
