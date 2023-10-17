@@ -1,0 +1,17 @@
+http://ookie.click {
+	bind unix//run/caddy/main.sock
+	redir https://c.ookie.click/er/
+}
+
+http://c.ookie.click {
+	bind unix//run/caddy/main.sock
+	root * /web/c.ookie.click/
+	file_server
+	log {
+		output file /var/log/caddy/c.ookie.click.log
+	}
+
+	redir / /er/
+
+	reverse_proxy /er/leaderboard/* localhost:8333
+}
