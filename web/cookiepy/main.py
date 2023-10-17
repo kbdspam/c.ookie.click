@@ -80,12 +80,12 @@ def leaderboard_query():
     cur = get_db().cursor()
     cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
     res = cur.execute("""
-        SELECT j.board, c.name, c.total_cookies, c.cookies_per_second
+        SELECT j.board, c.name, c.total_cookies, c.cookies_per_second, (c.id = ?)
         FROM joinedboards j
         JOIN clickers c ON c.id = j.clicker
         WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = ?)
         ORDER BY j.board ASC, c.cookies_per_second DESC, c.total_cookies DESC, c.id ASC
-    """, (cid,)).fetchall()
+    """, (cid, cid,)).fetchall()
     boards = cur.execute("SELECT b.id, b.name FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ?", (cid,)).fetchall()
     return jsonify(crud=res,boards=boards)
 
