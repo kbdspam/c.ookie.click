@@ -13,5 +13,5 @@ http://c.ookie.click {
 
 	redir / /er/
 
-	reverse_proxy /er/leaderboard/* localhost:8333
+	reverse_proxy /er/leaderboard/* unix//tmp/cookiepy.sock # todo?
 }

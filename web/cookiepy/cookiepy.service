@@ -1,0 +1,13 @@
+[Unit]
+Description=Gunicorn instance to serve c.ookie.click/er/leaderboard
+After=network.target
+
+[Service]
+User=admin #lol
+Group=admin #lol
+WorkingDirectory=/web/cookiepy
+Environment="PATH=/web/cookiepy/venv/bin"
+ExecStart=/web/cookiepy/venv/bin/gunicorn --workers 3 --bind unix:/tmp/cookiepy.sock -m 007 wsgi:app
+
+[Install]
+WantedBy=multi-user.target

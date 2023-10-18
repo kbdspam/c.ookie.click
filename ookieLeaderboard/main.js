@@ -37,16 +37,54 @@ Game.registerMod("ookieLeaderboard",{
 			},
 		}).then(response => {});
 	},
+	addTabBar: function() {
+		if (document.getElementById("leaderboardTabBar")) document.getElementById("leaderboardTabBar").remove();
+		l('leaderboardTitle').insertAdjacentHTML('afterend', `
+			<div id="leaderboardTabBar">
+				<div class="leaderboardTab subButton">asdf</div>
+				<div class="leaderboardTab subButton">asdf</div>
+				<div class="leaderboardTab subButton">asdf</div>
+				<div class="leaderboardTab subButton">asdf</div>
+				<div class="leaderboardTab subButton">asdf</div>
+			</div>
+		`);
+	},
+	addTabPage: function() {
+		if (document.getElementById("leaderboardTabPage")) document.getElementById("leaderboardTabPage").remove();
+		l('leaderboardTabBar').insertAdjacentHTML('afterend', `
+			<div id="leaderboardTabPage">
+				test
+			</div>
+		`);
+	},
 	init: function() {
 		let MOD = this;
 		this.updatemeInterval = setInterval(function(){MOD.leaderboard_updateme();}, 5*1000);
 		this.queryInterval = setInterval(function(){MOD.leaderboard_query();}, 5*1000);
 
+		document.head.appendChild(document.createElement("style")).innerHTML = `
+			#ookieLeaderboard {
+				background:url(img/starbg.jpg);
+			}
+			#leaderboardTabBar {
+				display: flex;
+			}
+			.leaderboardTab {
+				flex: 1;
+				padding: 1em;
+				text-align: center;
+				margin: 10px 10px 5px 10px;
+				background: #000;
+			}
+		`;
+
 		l('buildingsMaster').insertAdjacentHTML('afterend', `
 			<div id="ookieLeaderboard" class="row enabled">
-				aaaaaaaaaaaaa
+				<div id="leaderboardTitle">Leaderboard...</div>
 				<div class="separatorBottom"></div>
 			</div>
 		`);
+		this.addTabBar();
+		this.addTabPage();
 	},
 });
