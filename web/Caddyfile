@@ -12,6 +12,7 @@ http://c.ookie.click {
 	}
 
 	redir / /er/
+	#redir /er/cf https://dash.cloudflare.com/x/ookie.click
 
 	reverse_proxy /er/leaderboard/* unix//tmp/cookiepy.sock # todo?
 }

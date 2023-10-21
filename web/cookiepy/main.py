@@ -86,8 +86,8 @@ def leaderboard_query():
         WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = ?)
         ORDER BY j.board ASC, c.cookies_per_second DESC, c.total_cookies DESC, c.id ASC
     """, (cid, cid,)).fetchall()
-    boards = cur.execute("SELECT b.id, b.name FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ?", (cid,)).fetchall()
-    return jsonify(crud=res,boards=boards)
+    boards = cur.execute("SELECT b.id, b.name FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ? ORDER BY j.board ASC", (cid,)).fetchall()
+    return jsonify(boardinfo=boards,boardvalues=res)
 
 @app.route('/er/leaderboard/leave', methods=['POST'])
 def leaderboard_leave():

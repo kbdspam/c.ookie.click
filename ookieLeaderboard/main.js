@@ -35,10 +35,42 @@ Game.registerMod("ookieLeaderboard",{
 			headers: {
 				"X-My-Cookie": this.settings.cookie,
 			},
-		}).then(response => {});
+		}).then(response => {
+			if (response.ok)
+				return response.json();
+			else
+				throw Error(response.statusText);
+		})
+		.then(json => {
+			// setup tab bar from json.boardinfo [[boardid, boardname],]
+			let newTabBar = "";
+			let boardvalues = {};
+			const sanitizer = new Sanitizer();
+			for (let b of json.boardinfo) {
+				// SELECT b.id, b.name
+				boardvalues[b[0]] = [];
+				newTabBar += `<div class="leaderboardTab subButton" id="leaderboardTab${b[0]}">${sanitizer.sanitizeFor("div", b[1])}</div>`;
+			}
+			if (json.boardinfo.length < 5)
+				newTabBar += '<div class="leaderboardTab subButton" id="leaderboardTabNew">join/create a new board</div>';
+			l("leaderboardTabBar").innerHTML = newTabBar;
+			// parse json.boardvalues to fill out MOD.boardvalues[]
+			for (let v of json.boardvalues) {
+				// SELECT j.board, c.name, c.total_cookies, c.cookies_per_second, (c.id = ?)
+				let boardid = v.splice(1)[0];
+				boardvalues[boardid].push(v);
+				//if (v[3]) TRACK CURRENT RANK TODO
+			}
+			this.boardvalues = boardvalues;
+			this.boardinfo = json.boardinfo;
+			if (this.boardinfo.length > 0) this.tabOpenTo = this.boardinfo[0][0]; // TODO: TEMPORARY
+			let MOD = this;
+			setTimeout(()=>MOD.addTabPage());
+		})
+		.catch(err => console.log("leaderboard_query error: "+err));
 	},
 	addTabBar: function() {
-		if (document.getElementById("leaderboardTabBar")) document.getElementById("leaderboardTabBar").remove();
+		if (l("leaderboardTabBar")) l("leaderboardTabBar").remove();
 		l('leaderboardTitle').insertAdjacentHTML('afterend', `
 			<div id="leaderboardTabBar">
 				<div class="leaderboardTab subButton">asdf</div>
@@ -50,17 +82,43 @@ Game.registerMod("ookieLeaderboard",{
 		`);
 	},
 	addTabPage: function() {
-		if (document.getElementById("leaderboardTabPage")) document.getElementById("leaderboardTabPage").remove();
-		l('leaderboardTabBar').insertAdjacentHTML('afterend', `
+		if (this.tabOpenTo == null) return;
+		if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
+		let page = `
 			<div id="leaderboardTabPage">
-				test
+				<table id="leaderboardTabPageTable">
+				<thead>
+				<tr>
+				<th>Name</th>
+				<th>${loc("Cookies baked (this ascension):")}</th>
+				<th>${loc("Raw cookies per second:")}</th>
+				</tr>
+				</thead>
+				<tbody id="leaderboardTabPageTBody">
+		`;
+		const sanitizer = new Sanitizer();
+		for (let v of this.boardvalues[this.tabOpenTo]) {
+			// c.name, c.total_cookies, c.cookies_per_second, (c.id = ?)
+			const style = v[3] ? ' style="outline: #f00 solid 2px"'; // if self...
+			page += `
+				<tr${style}>
+				<td>${sanitizer.sanitizeFor("td", v[0])}</td>
+				<td>${v[1]}</td>
+				<td>${v[2]}</td>
+				</tr>
+			`;
+		}
+		l('leaderboardTabBar').insertAdjacentHTML('afterend',
+			page+`
+				</tbody>
+				</table>
 			</div>
 		`);
 	},
 	init: function() {
 		let MOD = this;
-		this.updatemeInterval = setInterval(function(){MOD.leaderboard_updateme();}, 5*1000);
-		this.queryInterval = setInterval(function(){MOD.leaderboard_query();}, 5*1000);
+		this.updatemeInterval = setInterval(()=>MOD.leaderboard_updateme(), 5*1000);
+		this.queryInterval = setInterval(()=>MOD.leaderboard_query(), 5*1000);
 
 		document.head.appendChild(document.createElement("style")).innerHTML = `
 			#ookieLeaderboard {
@@ -85,6 +143,6 @@ Game.registerMod("ookieLeaderboard",{
 			</div>
 		`);
 		this.addTabBar();
-		this.addTabPage();
+		//this.addTabPage();
 	},
 });
