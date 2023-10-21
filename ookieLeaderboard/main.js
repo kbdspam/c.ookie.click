@@ -168,25 +168,25 @@ Game.registerMod("ookieLeaderboard",{
 		this.tabOpenTo = board;
 		if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
 		let page = `
-			<div id="leaderboardTabPage">
-				<table id="leaderboardTabPageTable">
+			<div id="leaderboardTabPage" style="background: black">
+				<table>
 				<thead>
-				<tr>
-				<th>Name</th>
-				<th>${loc("Cookies baked (this ascension):")}</th>
-				<th>${loc("Raw cookies per second:")}</th>
+				<tr id="leaderboardTabPageTable">
+				<th style="width:28%">Name</th>
+				<th style="width:36%">${loc("Cookies baked (this ascension):")}</th>
+				<th style="width:40%">${loc("Raw cookies per second:")}</th>
 				</tr>
 				</thead>
 				<tbody id="leaderboardTabPageTBody">
 		`;
 		for (let v of this.boardvalues[board]) {
 			// c.name, c.total_cookies, c.cookies_per_second, (c.id = ?)
-			const style = v[3] ? ' style="outline: #f00 solid 2px"' : ''; // if self...
+			const style = v[3] ? ' style="outline: #00f solid 2px"' : ''; // if self...
 			page += `
 				<tr${style}>
 				<td>${this.escapeHTML(v[0])}</td>
-				<td>${v[1]}</td>
-				<td>${v[2]}</td>
+				<td>${Beautify(v[1])}</td>
+				<td>${Beautify(v[2])}</td>
 				</tr>
 			`;
 		}
@@ -219,6 +219,30 @@ Game.registerMod("ookieLeaderboard",{
 				text-align: center;
 				margin: 10px 10px 5px 10px;
 				background: #000;
+			}
+			#leaderboardTabPage > table {
+				margin: 20px 20px 20px 20px;
+				counter-reset: rowNumber;
+			}
+			#leaderboardTabPage > table tr > td:first-child {
+				counter-increment: rowNumber;
+			}
+			#leaderboardTabPage > table tr td:first-child::before {
+				content: counter(rowNumber);
+				min-width: 1em;
+				margin-right: 0.5em;
+			}
+			#leaderboardTabPageTable > th {
+				//width: 33%;
+				text-align: left;
+				text-decoration: underline;
+			}
+			#leaderboardTabPageTBody {
+				margin-top: 22px;
+			}
+			#leaderboardTabPageTBody:before {line-height:1em; content:"\\200C"; display:block;}
+			#leaderboardTabPageTBody > td {
+				background: #fff;
 			}
 		`;
 
