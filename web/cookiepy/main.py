@@ -27,7 +27,8 @@ def close_connection(exception):
 
 @app.route('/er/leaderboard/register', methods=['POST'])
 def leaderboard_register():
-    name = request.form.get("name", "")
+    #name = request.form.get("name", "") # TODO
+    name = request.headers.get('X-My-New-Leaderboard-Name', '')
     if len(name) < 1 or len(name) > 32 or len(name.encode('utf-8')) > 32:
         return "name too big or too small", 400
     cookie = randcookie()
@@ -41,7 +42,7 @@ def leaderboard_create():
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "a", 401
-    name = request.headers.get('X-My-Leaderboard-Name', '')
+    name = request.headers.get('X-My-New-Leaderboard-Name', '')
     if len(name) < 1 or len(name) > 32 or len(name.encode('utf-8')) > 32:
         return "name too big or too small", 400
     boardcookie = randcookie()
@@ -86,7 +87,7 @@ def leaderboard_query():
         WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = ?)
         ORDER BY j.board ASC, c.cookies_per_second DESC, c.total_cookies DESC, c.id ASC
     """, (cid, cid,)).fetchall()
-    boards = cur.execute("SELECT b.id, b.name FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ? ORDER BY j.board ASC", (cid,)).fetchall()
+    boards = cur.execute("SELECT b.id, b.name, (b.owner = ?) FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ? ORDER BY j.board ASC", (cid,cid,)).fetchall()
     return jsonify(boardinfo=boards,boardvalues=res)
 
 @app.route('/er/leaderboard/leave', methods=['POST'])
