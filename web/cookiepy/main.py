@@ -55,6 +55,21 @@ def leaderboard_create():
     get_db().commit()
     return "", 200
 
+@app.route('/er/leaderboard/cycleboardcookie', methods=['POST'])
+def leaderboard_cycleboardcookie():
+    cookie = request.headers.get('X-My-Cookie', '')
+    if len(cookie) != 32:
+        return "a", 401
+    boardid = int(request.headers.get('X-My-Leaderboard-ID', ''))
+    cur = get_db().cursor()
+    clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
+    r = cur.execute("UPDATE boards SET cookie = ? WHERE owner = ? AND id = ?", (randcookie(),clickerid,boardid))
+    get_db().commit()
+    if cur.rowcount > 0:
+        return "cycled", 200
+    else:
+        return "no?", 400
+
 @app.route('/er/leaderboard/updateme', methods=['POST'])
 def leaderboard_updateme():
     cookie = request.headers.get('X-My-Cookie', '')

@@ -43,8 +43,8 @@ Game.registerMod("ookieLeaderboard",{
 				"X-My-Leaderboard-ID": id.toString(),
 			},
 		}).then(response => {
-			if (response.ok) this.leaderboard_query();
-			else throw Error(response.statusText);
+			if (!response.ok) throw Error(response.statusText);
+			this.leaderboard_query();
 		}).catch(err => {
 			// TODO more stuff here...
 		});
@@ -58,8 +58,8 @@ Game.registerMod("ookieLeaderboard",{
 				"X-My-Leaderboard-Cookie": cookie,
 			},
 		}).then(response => {
-			if (response.ok) this.leaderboard_query();
-			else throw Error(response.statusText);
+			if (!response.ok) throw Error(response.statusText);
+			this.leaderboard_query();
 		}).catch(err => {
 			// TODO more stuff here...
 		});
@@ -74,10 +74,27 @@ Game.registerMod("ookieLeaderboard",{
 			},
 		}).then(response => {
 			this.waitingForRegister = false;
-			if (response.ok) return response.text();
-			else throw Error(response.statusText);
+			if (!response.ok) throw Error(response.statusText);
+			return response.text();
 		}).then(cookie => {
 			this.leaderboard_query();
+		}).catch(err => {
+			// TODO more stuff here...
+		});
+	},
+	leaderboard_cycleboardcookie: function(id) {
+		if (this.settings.cookie == "none") return;
+		if (this.rateLimit(5, "lastcycle")) return;
+		fetch(this.baseURL+"/leaderboard/cycleboardcookie", {
+			method: "POST",
+			headers: {
+				"X-My-Cookie": this.settings.cookie,
+				"X-My-Leaderboard-ID": id.toString(),
+			},
+		}).then(response => {
+			if (!response.ok) throw Error(response.statusText);
+			this.leaderboard_query();
+			Game.Notify('leaderboard invite code changed!','',0,5)
 		}).catch(err => {
 			// TODO more stuff here...
 		});
@@ -93,8 +110,8 @@ Game.registerMod("ookieLeaderboard",{
 			},
 		}).then(response => {
 			this.waitingForRegister = false;
-			if (response.ok) return response.text();
-			else throw Error(response.statusText);
+			if (!response.ok) throw Error(response.statusText);
+			return response.text();
 		}).then(cookie => {
 			this.settings.cookie = cookie;
 			this.leaderboard_query();
@@ -114,17 +131,19 @@ Game.registerMod("ookieLeaderboard",{
 				"X-My-Cookie": this.settings.cookie,
 			},
 		}).then(response => {
-			if (response.ok) return response.json();
-			else throw Error(response.statusText);
+			if (!response.ok) throw Error(response.statusText);
+			return response.json();
 		}).then(json => {
 			this.queriedOnce = true;
 			//console.log(json);
 			// setup tab bar from json.boardinfo [[boardid, boardname],]
 			let newTabBar = "";
 			let boardvalues = {};
+			let foundCurrent = false;
 			for (let b of json.boardinfo) {
 				// SELECT b.id, b.name, (b.owner = ?)
 				boardvalues[b[0]] = [];
+				if (b[0] == this.tabOpenTo) foundCurrent = true;
 				newTabBar += `<div class="leaderboardTab subButton" id="leaderboardTab${b[0]}">${this.escapeHTML(b[1])}</div>`;
 			}
 			if (newTabBar == "") {
@@ -143,7 +162,8 @@ Game.registerMod("ookieLeaderboard",{
 			}
 			this.boardvalues = boardvalues;
 			this.boardinfo = json.boardinfo;
-			if (this.tabOpenTo != null) this.viewLeaderboardPage(+this.tabOpenTo);
+			if (foundCurrent) this.viewLeaderboardPage(this.tabOpenTo);
+			else if (l("leaderboardTabPage")) l("leaderboardTabPage").remove(); // maybe the client got kicked
 		}).catch(()=>{
 			if (l("leaderboardTabBar").innerText == "loading...")
 				l("leaderboardTabBar").innerText += " (server might be down)";
@@ -268,9 +288,11 @@ Game.registerMod("ookieLeaderboard",{
 			page+`
 				</tbody>
 				</table>
-				<a class="smallFancyButton" id="leaderboardLeave" onclick="document.ookieLeaderboard.leaveButton()">leave?</a>
+				<a class="smallFancyButton" id="leaderboardLeave" onclick="document.ookieLeaderboard.leaveButton()">leave</a>
 			`+(bcookie==''?"":`
 				<a class="smallFancyButton" id="leaderboardTabGetCode" onclick="navigator.clipboard.writeText('${bcookie}').then(()=>Game.Notify('copied leaderboard invite code to clipboard','',0,5));">copy invite code</a>
+				<!-- Hello there -->
+				<a class="smallFancyButton" id="leaderboardTabCycleCode" onclick="document.ookieLeaderboard.leaderboard_cycleboardcookie(document.ookieLeaderboard.tabOpenTo);">change invite code</a>
 			`)+`
 			</div>
 		`);
@@ -369,6 +391,12 @@ Game.registerMod("ookieLeaderboard",{
 				</div>
 			</div>
 		`);
+	},
+	rateLimit: function(t, key) {
+		const now = new Date()/1000;
+		if ((now-this["____last_"+key])<5) return true;
+		this["____last_"+key] = now;
+		return false;
 	},
 	escapeHTML: function(s) {
 		return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
