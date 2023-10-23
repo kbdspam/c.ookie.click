@@ -187,12 +187,13 @@ Game.registerMod("ookieLeaderboard",{
 	leaveButton: function() {
 		if (this.tabOpenTo == null) return;//?
 		PlaySound('snd/clickOn2.mp3');
-		Game.Prompt('<id LeaderboardLeaveAAAAA><h3>Are you sure you want to leave?</h3><div class="block" style="text-align:center;">if you have double-checked that you\'re leaving the correct leaderboard then type in "sayonara" (without the quotes) and hit leave</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardLeavePrompt" value=""/></div>', [
+		Game.Prompt('<id LeaderboardLeaveAAAAA><h3>Are you sure you want to leave?</h3><div class="block" style="text-align:center;">if you have double-checked that you\'re leaving the correct leaderboard then type in "sayonara" (without the quotes) and hit leave<br>(also if you\'re the owner then leaving will delete the leaderboard)</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardLeavePrompt" value=""/></div>', [
 			["leave", `
 				const s = l('leaderboardLeavePrompt').value;
 				if (s == "sayonara" || s == "さよなら" || s.startsWith("じゃ")) {
 					ookieLeaderboard.leaderboard_leave(ookieLeaderboard.tabOpenTo);
 					Game.ClosePrompt();
+					Game.Notify("goodbye :(",'',0,5);
 				}
 			`],
 			loc("Cancel"),
@@ -224,7 +225,7 @@ Game.registerMod("ookieLeaderboard",{
 		`;
 		for (const v of this.boardvalues[board]) {
 			// c.name, c.total_cookies, c.cookies_per_second, (c.id = ?)
-			const style = v[3] ? ' style="outline: #00f solid 2px"' : ''; // if self...
+			const style = v[3] ? ' style="outline: rgba(255,255,255,.3) solid 2px"' : ''; // if self...
 			page += `
 				<tr${style}>
 				<td>${this.escapeHTML(v[0])}</td>
@@ -233,11 +234,18 @@ Game.registerMod("ookieLeaderboard",{
 				</tr>
 			`;
 		}
+		let bcookie = '';
+		for (const e of this.boardinfo) {
+			if (e[0] == board) bcookie = e[2];
+		}
 		l('leaderboardTabBar').insertAdjacentHTML('afterend',
 			page+`
 				</tbody>
 				</table>
 				<a class="smallFancyButton" id="leaderboardLeave" onclick="document.ookieLeaderboard.leaveButton()">leave?</a>
+			`+(bcookie==''?"":`
+				<a class="smallFancyButton" id="leaderboardTabGetCode" onclick="navigator.clipboard.writeText('${bcookie}').then(()=>Game.Notify('copied leaderboard invite code to clipboard','',0,5));">copy invite code</a>
+			`)+`
 			</div>
 		`);
 	},
@@ -254,7 +262,7 @@ Game.registerMod("ookieLeaderboard",{
 
 		document.head.appendChild(document.createElement("style")).innerHTML = `
 			#ookieLeaderboard {
-				//background:url(img/starbg.jpg);
+				//background: url(img/starbg.jpg);
 				background: url(img/shipmentBackground.png);
 				background-size: auto 100%;
 			}
