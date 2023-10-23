@@ -36,7 +36,6 @@ Game.registerMod("ookieLeaderboard",{
 	},
 	leaderboard_leave: function(id) {
 		if (this.settings.cookie == "none") return;
-		const MOD = this; // I have no idea how fetch stuff affects `this`... I don't care to find out either. MOD it is...
 		fetch(this.baseURL+"/leaderboard/leave", {
 			method: "POST",
 			headers: {
@@ -44,7 +43,7 @@ Game.registerMod("ookieLeaderboard",{
 				"X-My-Leaderboard-ID": id.toString(),
 			},
 		}).then(response => {
-			if (response.ok) MOD.leaderboard_query();
+			if (response.ok) this.leaderboard_query();
 			else throw Error(response.statusText);
 		}).catch(err => {
 			// TODO more stuff here...
@@ -52,7 +51,6 @@ Game.registerMod("ookieLeaderboard",{
 	},
 	leaderboard_join: function(cookie) {
 		if (this.settings.cookie == "none") return;
-		const MOD = this; // I have no idea how fetch stuff affects `this`... I don't care to find out either. MOD it is...
 		fetch(this.baseURL+"/leaderboard/join", {
 			method: "POST",
 			headers: {
@@ -60,7 +58,7 @@ Game.registerMod("ookieLeaderboard",{
 				"X-My-Leaderboard-Cookie": cookie,
 			},
 		}).then(response => {
-			if (response.ok) MOD.leaderboard_query();
+			if (response.ok) this.leaderboard_query();
 			else throw Error(response.statusText);
 		}).catch(err => {
 			// TODO more stuff here...
@@ -68,7 +66,6 @@ Game.registerMod("ookieLeaderboard",{
 	},
 	leaderboard_create: function(name) {
 		if (this.settings.cookie == "none") return;
-		const MOD = this; // I have no idea how fetch stuff affects `this`... I don't care to find out either. MOD it is...
 		fetch(this.baseURL+"/leaderboard/create", {
 			method: "POST",
 			headers: {
@@ -76,11 +73,11 @@ Game.registerMod("ookieLeaderboard",{
 				"X-My-New-Leaderboard-Name": name,
 			},
 		}).then(response => {
-			MOD.waitingForRegister = false;
+			this.waitingForRegister = false;
 			if (response.ok) return response.text();
 			else throw Error(response.statusText);
 		}).then(cookie => {
-			MOD.leaderboard_query();
+			this.leaderboard_query();
 		}).catch(err => {
 			// TODO more stuff here...
 		});
@@ -89,19 +86,18 @@ Game.registerMod("ookieLeaderboard",{
 		if (this.settings.cookie != "none") return;
 		if (this.waitingForRegister) return;
 		this.waitingForRegister = true;
-		const MOD = this; // I have no idea how fetch stuff affects `this`... I don't care to find out either. MOD it is...
 		fetch(this.baseURL+"/leaderboard/register", {
 			method: "POST",
 			headers: {
 				"X-My-New-Leaderboard-Name": name,
 			},
 		}).then(response => {
-			MOD.waitingForRegister = false;
+			this.waitingForRegister = false;
 			if (response.ok) return response.text();
 			else throw Error(response.statusText);
 		}).then(cookie => {
-			MOD.settings.cookie = cookie;
-			MOD.leaderboard_query();
+			this.settings.cookie = cookie;
+			this.leaderboard_query();
 			Game.Notify("Registered!",'',0,5);
 		}).catch(err => {
 			// TODO more stuff here...
@@ -121,6 +117,7 @@ Game.registerMod("ookieLeaderboard",{
 			if (response.ok) return response.json();
 			else throw Error(response.statusText);
 		}).then(json => {
+			this.queriedOnce = true;
 			//console.log(json);
 			// setup tab bar from json.boardinfo [[boardid, boardname],]
 			let newTabBar = "";
@@ -147,13 +144,16 @@ Game.registerMod("ookieLeaderboard",{
 			this.boardvalues = boardvalues;
 			this.boardinfo = json.boardinfo;
 			if (this.tabOpenTo != null) this.viewLeaderboardPage(+this.tabOpenTo);
-			//if (this.dev && this.boardinfo.length > 0) setTimeout((b)=>MOD.viewLeaderboardPage(b), 0, this.boardinfo[0][0]); // TODO: TEMPORARY
-		}).catch(()=>{}); // no need to console.log because the console already spams failed network requests
+		}).catch(()=>{
+			if (l("leaderboardTabBar").innerText == "loading...")
+				l("leaderboardTabBar").innerText += " (server might be down)";
+		});
 	},
 
 
 	joinCreatePrompt: function() {
 		if (this.settings.cookie == "none") return this.registerButton();
+		if (!this.queriedOnce) return;
 		if (this.boardinfo.length >= 5) {
 			Game.Notify("You can't join/create any more leaderboards!",'',0,5);
 			PlaySound('snd/clickOff2.mp3');
@@ -278,7 +278,6 @@ Game.registerMod("ookieLeaderboard",{
 
 
 	init: function() {
-		const MOD = this;
 		document.ookieLeaderboard = this;//bleh
 		this.dev = 1;
 		this.updateS = this.dev ? 5 : 30;
