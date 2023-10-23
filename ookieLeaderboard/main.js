@@ -10,9 +10,15 @@ Game.registerMod("ookieLeaderboard",{
 	},
 	load: function(str) {
 		if (this.dev) str = '{"cookie":"0iHWVgyMQIlgz0erE2kruEwDr3JZiDpQ"}';
+		//if (this.dev) str = '{"cookie":"none"}';
 		this.settings = JSON.parse(str||'{"cookie":"none"}');
 		setTimeout(()=>document.ookieLeaderboard.leaderboard_updateme(),2*1000);//bleh
 		this.leaderboard_query();
+		if (this.settings.cookie == "none") {
+			l("leaderboardTabBar").innerHTML = `
+				<a style="font-size:12px;" class="smallFancyButton" onclick="ookieLeaderboard.registerButton()">register</a>
+			`;
+		}
 	},
 
 
@@ -94,9 +100,12 @@ Game.registerMod("ookieLeaderboard",{
 			if (response.ok) return response.text();
 			else throw Error(response.statusText);
 		}).then(cookie => {
-			this.settings.cookie = cookie;
+			MOD.settings.cookie = cookie;
+			MOD.leaderboard_query();
+			Game.Notify("Registered!",'',0,5);
 		}).catch(err => {
 			// TODO more stuff here...
+			Game.Notify("Failed to register :/",'The server might be down...',0,5);
 		});
 	},
 	leaderboard_query: function() {
@@ -123,7 +132,7 @@ Game.registerMod("ookieLeaderboard",{
 			}
 			if (newTabBar == "") {
 				newTabBar = `
-					<div style="padding: 5px 5px 5px 5px;">try joining or creating a leaderboard with the button on the bottom right</div>
+					<div style="padding: 10px 10px 10px 10px;">try joining or creating a leaderboard with the button to the bottom right</div>
 				`;
 			}
 			l("leaderboardTabBar").innerHTML = newTabBar;
@@ -144,6 +153,7 @@ Game.registerMod("ookieLeaderboard",{
 
 
 	joinCreatePrompt: function() {
+		if (this.settings.cookie == "none") return this.registerButton();
 		if (this.boardinfo.length >= 5) {
 			Game.Notify("You can't join/create any more leaderboards!",'',0,5);
 			PlaySound('snd/clickOff2.mp3');
@@ -176,13 +186,29 @@ Game.registerMod("ookieLeaderboard",{
 		if (this.tabOpenTo == +item) {
 			this.tabOpenTo = null;
 			PlaySound('snd/clickOff2.mp3');
-			
 			l("leaderboardTab"+item).classList.remove("leaderboardTabSelected");
 			if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
 		} else {
 			PlaySound('snd/clickOn2.mp3');
 			this.viewLeaderboardPage(+item);
 		}
+	},
+	registerButton: function() {
+		if (this.settings.cookie != "none") return;
+		PlaySound('snd/clickOn2.mp3');
+		Game.Prompt('<id LeaderboardRegisterAAAA><h3>Register on c.ookie.click/er/</h3><div class="block" style="text-align:center;">Enter a name you want to use on leaderboards. This can\'t be changed afterwards. Don\'t choose something racist, sexist, offensive, etc please.</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardRegisterPrompt" value=""/></div>', [
+			["register", `
+				const s = l('leaderboardRegisterPrompt').value;
+				const x = (new TextEncoder().encode(s)).length;
+				if (x >= 1 && x <= 32) {
+					ookieLeaderboard.leaderboard_register(s);
+					Game.ClosePrompt();
+				}
+			`],
+			loc("Cancel"),
+		]);
+		l('leaderboardRegisterPrompt').focus();
+		l('leaderboardRegisterPrompt').select();
 	},
 	leaveButton: function() {
 		if (this.tabOpenTo == null) return;//?
@@ -314,6 +340,8 @@ Game.registerMod("ookieLeaderboard",{
 			}
 			#leaderboardTabPageTBody {
 				margin-top: 22px;
+				overflow-y: scroll;
+				max-height: 300px;
 			}
 			#leaderboardTabPageTBody:before {
 				line-height: 1em;
