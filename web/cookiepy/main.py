@@ -118,7 +118,7 @@ def leaderboard_query():
     cur = get_db().cursor()
     cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
     res = cur.execute("""
-        SELECT j.board, c.name, c.total_cookies, c.cookies_per_second, c.id
+        SELECT j.board, c.name, c.cookies_per_second, c.total_cookies, c.id
         FROM joinedboards j
         JOIN clickers c ON c.id = j.clicker
         WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = ?)

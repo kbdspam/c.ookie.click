@@ -307,8 +307,8 @@ Game.registerMod("ookieLeaderboard",{
 				<thead>
 				<tr id="leaderboardTabPageTable">
 				<th style="width:28%">Name</th>
-				<th style="width:36%">${loc("Cookies baked (this ascension):")}</th>
-				<th style="width:40%">${loc("Raw cookies per second:")}</th>
+				<th style="width:36%">${loc("Raw cookies per second:")}</th>
+				<th style="width:40%">${loc("Cookies baked (this ascension):")}</th>
 				</tr>
 				</thead>
 				<tbody id="leaderboardTabPageTBody">
@@ -419,6 +419,7 @@ Game.registerMod("ookieLeaderboard",{
 			}
 			#leaderboardTabPageTBody > td {
 				//background: #fff;
+				overflow: hidden;
 			}
 		`;
 		l('buildingsMaster').insertAdjacentHTML('afterend', `
