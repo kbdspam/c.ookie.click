@@ -70,6 +70,28 @@ def leaderboard_cycleboardcookie():
     else:
         return "no?", 400
 
+@app.route('/er/leaderboard/kick', methods=['POST'])
+def leaderboard_kick():
+    cookie = request.headers.get('X-My-Cookie', '')
+    if len(cookie) != 32:
+        return "a", 401
+    enemy = int(request.headers.get('X-My-Enemy-ID', ''))
+    boardid = int(request.headers.get('X-My-Leaderboard-ID', ''))
+    cur = get_db().cursor()
+    clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
+    if enemy == clickerid:
+        return "no...", 400
+    r = cur.execute("UPDATE boards SET cookie = ? WHERE owner = ? AND id = ?", (randcookie(),clickerid,boardid))
+    if cur.rowcount > 0:
+        r = cur.execute("DELETE FROM joinedboards WHERE clicker = ? AND board = ?", (enemy,boardid))
+        if cur.rowcount > 0:
+            get_db().commit()
+            return "kicked", 200
+        else:
+            return "not in board?", 400
+    else:
+        return "???", 400
+
 @app.route('/er/leaderboard/updateme', methods=['POST'])
 def leaderboard_updateme():
     cookie = request.headers.get('X-My-Cookie', '')
@@ -96,14 +118,14 @@ def leaderboard_query():
     cur = get_db().cursor()
     cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
     res = cur.execute("""
-        SELECT j.board, c.name, c.total_cookies, c.cookies_per_second, (c.id = ?)
+        SELECT j.board, c.name, c.total_cookies, c.cookies_per_second, c.id
         FROM joinedboards j
         JOIN clickers c ON c.id = j.clicker
         WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = ?)
         ORDER BY j.board ASC, c.cookies_per_second DESC, c.total_cookies DESC, c.id ASC
-    """, (cid, cid,)).fetchall()
+    """, (cid,)).fetchall()
     boards = cur.execute("SELECT b.id, b.name, (CASE b.owner=? WHEN 1 THEN b.cookie ELSE '' END) FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ? ORDER BY j.board ASC", (cid,cid,)).fetchall()
-    return jsonify(boardinfo=boards,boardvalues=res)
+    return jsonify(boardinfo=boards,boardvalues=res,you=cid)
 
 @app.route('/er/leaderboard/leave', methods=['POST'])
 def leaderboard_leave():
@@ -139,11 +161,12 @@ def leaderboard_join():
         return "b", 401
     cur = get_db().cursor()
     cur.execute("""
-        INSERT INTO joinedboards (cid, bid)
-        SELECT clickers.id as cid, boards.id as bid
-        FROM clickers WHERE cookie = ?
+        INSERT INTO joinedboards (clicker, board)
+        SELECT clickers.id as clicker, boards.id as board
+        FROM clickers
         JOIN boards on boards.cookie = ?
-    """, (cookie, boardcookie))
+        WHERE clickers.cookie = ?
+    """, (boardcookie,cookie))
     get_db().commit()
     if cur.rowcount > 0:
         return "joined", 200

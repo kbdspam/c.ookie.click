@@ -46,7 +46,7 @@ Game.registerMod("ookieLeaderboard",{
 			if (!response.ok) throw Error(response.statusText);
 			this.leaderboard_query();
 		}).catch(err => {
-			// TODO more stuff here...
+			Game.Notify('failed to join leaderboard','The server might be down...',0,5);
 		});
 	},
 	leaderboard_join: function(cookie) {
@@ -61,7 +61,7 @@ Game.registerMod("ookieLeaderboard",{
 			if (!response.ok) throw Error(response.statusText);
 			this.leaderboard_query();
 		}).catch(err => {
-			// TODO more stuff here...
+			Game.Notify('failed to join leaderboard','The server might be down...',0,5);
 		});
 	},
 	leaderboard_create: function(name) {
@@ -79,7 +79,25 @@ Game.registerMod("ookieLeaderboard",{
 		}).then(cookie => {
 			this.leaderboard_query();
 		}).catch(err => {
-			// TODO more stuff here...
+			Game.Notify('failed to create leaderboard','The server might be down...',0,5);
+		});
+	},
+	leaderboard_kick: function(board,id) {
+		if (this.settings.cookie == "none") return;
+		if (this.you == id) return; //?
+		fetch(this.baseURL+"/leaderboard/kick", {
+			method: "POST",
+			headers: {
+				"X-My-Cookie": this.settings.cookie,
+				"X-My-Leaderboard-ID": board.toString(),
+				"X-My-Enemy-ID": id.toString(),
+			},
+		}).then(response => {
+			if (!response.ok) throw Error(response.statusText);
+			this.leaderboard_query();
+			Game.Notify('kicked!','',0,5);
+		}).catch(err => {
+			Game.Notify('failed to kick that person','The server might be down or maybe they\'re not in the group anymore...',0,5);
 		});
 	},
 	leaderboard_cycleboardcookie: function(id) {
@@ -94,9 +112,9 @@ Game.registerMod("ookieLeaderboard",{
 		}).then(response => {
 			if (!response.ok) throw Error(response.statusText);
 			this.leaderboard_query();
-			Game.Notify('leaderboard invite code changed!','',0,5)
+			Game.Notify('leaderboard invite code changed!','',0,5);
 		}).catch(err => {
-			// TODO more stuff here...
+			Game.Notify('failed to change invite code','The server might be down...',0,5);
 		});
 	},
 	leaderboard_register: function(name) {
@@ -135,6 +153,7 @@ Game.registerMod("ookieLeaderboard",{
 			return response.json();
 		}).then(json => {
 			this.queriedOnce = true;
+			this.you = json.you;
 			//console.log(json);
 			// setup tab bar from json.boardinfo [[boardid, boardname],]
 			let newTabBar = "";
@@ -247,6 +266,23 @@ Game.registerMod("ookieLeaderboard",{
 		l('leaderboardLeavePrompt').focus();
 		l('leaderboardLeavePrompt').select();
 	},
+	kickButton: function(butt,board,id) {
+		if (this.tabOpenTo == null) return;//?
+		const name = butt.parentElement.parentElement.children[0].innerHTML;
+		PlaySound('snd/clickOn2.mp3');
+		Game.Prompt(`<id LeaderboardKickerAA><h3>Kick ${name}?</h3><div class="block" style="text-align:center;">type anything in the box below and hit 'kick' to confirm<br>(kicking someone also changes the invite code)</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardKickPrompt" value=""/></div>`, [
+			["kick", `
+				const s = l('leaderboardKickPrompt').value;
+				if (l('leaderboardKickPrompt').value.length > 0) {
+					ookieLeaderboard.leaderboard_kick(${board},${id});
+					Game.ClosePrompt();
+				}
+			`],
+			loc("Cancel"),
+		]);
+		l('leaderboardKickPrompt').focus();
+		l('leaderboardKickPrompt').select();
+	},
 	viewLeaderboardPage: function(board) {
 		this.tabOpenTo = board;
 		if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
@@ -256,6 +292,10 @@ Game.registerMod("ookieLeaderboard",{
 			} else {
 				e.classList.remove("leaderboardTabSelected");
 			}
+		}
+		let bcookie = '';
+		for (const e of this.boardinfo) {
+			if (e[0] == board) bcookie = e[2];
 		}
 		let page = `
 			<div id="leaderboardTabPage">
@@ -270,19 +310,18 @@ Game.registerMod("ookieLeaderboard",{
 				<tbody id="leaderboardTabPageTBody">
 		`;
 		for (const v of this.boardvalues[board]) {
-			// c.name, c.total_cookies, c.cookies_per_second, (c.id = ?)
-			const style = v[3] ? ' style="outline: rgba(255,255,255,.3) solid 2px"' : ''; // if self...
+			// c.name, c.total_cookies, c.cookies_per_second, c.id
+			const style = (+v[3]==this.you) ? ' style="outline: rgba(255,255,255,.3) solid 2px"' : ''; // if self...
+			// lol. invisible button for uniform row size... just fix the padding lol TODO
+			const kickb = (bcookie=='')?'' : ((+v[3]==this.you)?`<td><a class="smallFancyButton" style="visibility: hidden;">kick</a></td>`:`<td><a class="smallFancyButton" onclick="document.ookieLeaderboard.kickButton(this,${board},${v[3]})">kick</a></td>`);
 			page += `
 				<tr${style}>
 				<td>${this.escapeHTML(v[0])}</td>
 				<td>${Beautify(v[1])}</td>
 				<td>${Beautify(v[2])}</td>
+				${kickb}
 				</tr>
 			`;
-		}
-		let bcookie = '';
-		for (const e of this.boardinfo) {
-			if (e[0] == board) bcookie = e[2];
 		}
 		l('leaderboardTabBar').insertAdjacentHTML('afterend',
 			page+`
@@ -354,6 +393,11 @@ Game.registerMod("ookieLeaderboard",{
 				min-width: 1em;
 				margin-right: 0.5em;
 			}
+			/*.leaderboardTabPageTBodyButImOwner > tr::after {
+				content: "(kick)";
+				min-width: 1em;
+				margin-right: 0.5em;
+			}*/
 			#leaderboardTabPageTable > th {
 				//width: 33%;
 				text-align: left;
