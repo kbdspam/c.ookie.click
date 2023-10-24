@@ -157,13 +157,24 @@ Game.registerMod("ookieLeaderboard",{
 			//console.log(json);
 			// setup tab bar from json.boardinfo [[boardid, boardname],]
 			let newTabBar = "";
-			let boardvalues = {};
+			let boards = {};
 			let foundCurrent = false;
 			for (let b of json.boardinfo) {
-				// SELECT b.id, b.name, (b.owner = ?)
-				boardvalues[b[0]] = [];
+				boards[b[0]] = {values:[],name:b[1],cookie:b[2],myrank:"9001"};
 				if (b[0] == this.tabOpenTo) foundCurrent = true;
-				newTabBar += `<div class="leaderboardTab subButton" id="leaderboardTab${b[0]}">${this.escapeHTML(b[1])}</div>`;
+			}
+			// parse json.boardvalues to fill out MOD.boardvalues[]
+			let lastboard = null, rank = 0;
+			for (let v of json.boardvalues) {
+				// SELECT j.board, c.name, c.total_cookies, c.cookies_per_second, c.id
+				const boardid = v.splice(0,1)[0];
+				if (boardid != lastboard) [lastboard,rank] = [boardid,0];
+				++rank;
+				boards[boardid].values.push(v);
+				if (+v[3] == this.you) boards[boardid].myrank = rank;
+			}
+			for (const board in boards) {
+				newTabBar += `<div class="leaderboardTab subButton" id="leaderboardTab${board}">#${boards[board].myrank}<br>${this.escapeHTML(boards[board].name)}</div>`;
 			}
 			if (newTabBar == "") {
 				newTabBar = `
@@ -172,15 +183,7 @@ Game.registerMod("ookieLeaderboard",{
 			}
 			l("leaderboardTabBar").innerHTML = newTabBar;
 			document.querySelectorAll(".leaderboardTab").forEach((tab)=>AddEvent(tab,'click',(e)=>MOD._leaderboardTabClick(e)));
-			// parse json.boardvalues to fill out MOD.boardvalues[]
-			for (let v of json.boardvalues) {
-				// SELECT j.board, c.name, c.total_cookies, c.cookies_per_second, (c.id = ?)
-				let boardid = v.splice(0,1)[0];
-				boardvalues[boardid].push(v);
-				//if (v[3]) TRACK CURRENT RANK TODO
-			}
-			this.boardvalues = boardvalues;
-			this.boardinfo = json.boardinfo;
+			this.boards = boards;
 			if (foundCurrent) this.viewLeaderboardPage(this.tabOpenTo);
 			else if (l("leaderboardTabPage")) l("leaderboardTabPage").remove(); // maybe the client got kicked
 		}).catch(()=>{
@@ -193,7 +196,7 @@ Game.registerMod("ookieLeaderboard",{
 	joinCreatePrompt: function() {
 		if (this.settings.cookie == "none") return this.registerButton();
 		if (!this.queriedOnce) return;
-		if (this.boardinfo.length >= 5) {
+		if (Object.keys(this.boards).length >= 5) {
 			Game.Notify("You can't join/create any more leaderboards!",'',0,5);
 			PlaySound('snd/clickOff2.mp3');
 			return;
@@ -293,10 +296,11 @@ Game.registerMod("ookieLeaderboard",{
 				e.classList.remove("leaderboardTabSelected");
 			}
 		}
-		let bcookie = '';
+		/*let bcookie = '';
 		for (const e of this.boardinfo) {
 			if (e[0] == board) bcookie = e[2];
-		}
+		}*/
+		const bcookie = this.boards[board].cookie;
 		let page = `
 			<div id="leaderboardTabPage">
 				<table>
@@ -309,7 +313,7 @@ Game.registerMod("ookieLeaderboard",{
 				</thead>
 				<tbody id="leaderboardTabPageTBody">
 		`;
-		for (const v of this.boardvalues[board]) {
+		for (const v of this.boards[board].values) {
 			// c.name, c.total_cookies, c.cookies_per_second, c.id
 			const style = (+v[3]==this.you) ? ' style="outline: rgba(255,255,255,.3) solid 2px"' : ''; // if self...
 			// lol. invisible button for uniform row size... just fix the padding lol TODO
@@ -362,7 +366,7 @@ Game.registerMod("ookieLeaderboard",{
 			}
 			.leaderboardTab {
 				flex: 1;
-				padding: 1em;
+				//padding: 1em;
 				text-align: center;
 				margin: 13px 10px 5px 10px;
 				background: #000;
