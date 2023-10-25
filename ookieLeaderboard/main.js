@@ -11,7 +11,7 @@ Game.registerMod("ookieLeaderboard",{
 		return JSON.stringify(this.settings);
 	},
 	load: function(str) {
-		if (this.dev) str = '{"cookiedev":"H8RlPc7w0htDDaicIP5esmXkm6DuyDka","cookiereal":"Ne0FTKZR3ug69lkvGWaYHoG2Rt85V5fS"}';
+		//if (this.dev) str = '{"cookiedev":"none","cookiereal":"none"}';
 		this.settings = JSON.parse(str||'{"cookiedev":"none","cookiereal":"none"}');
 		this.cookie = this.dev ? this.settings.cookiedev : this.settings.cookiereal;
 		setTimeout(()=>document.ookieLeaderboard.leaderboard_updateme(),2*1000);//bleh
