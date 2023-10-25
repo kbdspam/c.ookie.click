@@ -2,19 +2,21 @@
 // this was intentionally written sloppily teehee
 // best practices btfo
 
-// execution goes init()... then load()... the more you know...
+// init() called first. if a save exists then load()...
 
 Game.registerMod("ookieLeaderboard",{
+	dev: 0,
+
 	save: function() {
 		return JSON.stringify(this.settings);
 	},
 	load: function(str) {
-		if (this.dev) str = '{"cookie":"0iHWVgyMQIlgz0erE2kruEwDr3JZiDpQ"}';
-		//if (this.dev) str = '{"cookie":"none"}';
-		this.settings = JSON.parse(str||'{"cookie":"none"}');
+		if (this.dev) str = '{"cookiedev":"H8RlPc7w0htDDaicIP5esmXkm6DuyDka","cookiereal":"Ne0FTKZR3ug69lkvGWaYHoG2Rt85V5fS"}';
+		this.settings = JSON.parse(str||'{"cookiedev":"none","cookiereal":"none"}');
+		this.cookie = this.dev ? this.settings.cookiedev : this.settings.cookiereal;
 		setTimeout(()=>document.ookieLeaderboard.leaderboard_updateme(),2*1000);//bleh
 		this.leaderboard_query();
-		if (this.settings.cookie == "none") {
+		if (this.cookie == "none") {
 			l("leaderboardTabBar").innerHTML = `
 				<a style="font-size:12px;" class="smallFancyButton" onclick="ookieLeaderboard.registerButton()">register</a>
 			`;
@@ -25,21 +27,21 @@ Game.registerMod("ookieLeaderboard",{
 	leaderboard_updateme: function() {
 		if (this.updatemeInterval) clearInterval(this.updatemeInterval);
 		this.updatemeInterval = setInterval(()=>document.ookieLeaderboard.leaderboard_updateme(), this.updateS*1000); // dumb, I know
-		if (this.settings.cookie == "none") return;
+		if (this.cookie == "none") return;
 		fetch(this.baseURL+"/leaderboard/updateme", {
 			method: "POST",
 			headers: {
-				"X-My-Cookie": this.settings.cookie,
+				"X-My-Cookie": this.cookie,
 				"X-My-Update-Data": Game.cookiesEarned+'|'+Game.cookiesPsRaw,
 			},
 		}).then(response => {});
 	},
 	leaderboard_leave: function(id) {
-		if (this.settings.cookie == "none") return;
+		if (this.cookie == "none") return;
 		fetch(this.baseURL+"/leaderboard/leave", {
 			method: "POST",
 			headers: {
-				"X-My-Cookie": this.settings.cookie,
+				"X-My-Cookie": this.cookie,
 				"X-My-Leaderboard-ID": id.toString(),
 			},
 		}).then(response => {
@@ -50,11 +52,11 @@ Game.registerMod("ookieLeaderboard",{
 		});
 	},
 	leaderboard_join: function(cookie) {
-		if (this.settings.cookie == "none") return;
+		if (this.cookie == "none") return;
 		fetch(this.baseURL+"/leaderboard/join", {
 			method: "POST",
 			headers: {
-				"X-My-Cookie": this.settings.cookie,
+				"X-My-Cookie": this.cookie,
 				"X-My-Leaderboard-Cookie": cookie,
 			},
 		}).then(response => {
@@ -65,11 +67,11 @@ Game.registerMod("ookieLeaderboard",{
 		});
 	},
 	leaderboard_create: function(name) {
-		if (this.settings.cookie == "none") return;
+		if (this.cookie == "none") return;
 		fetch(this.baseURL+"/leaderboard/create", {
 			method: "POST",
 			headers: {
-				"X-My-Cookie": this.settings.cookie,
+				"X-My-Cookie": this.cookie,
 				"X-My-New-Leaderboard-Name": name,
 			},
 		}).then(response => {
@@ -83,12 +85,12 @@ Game.registerMod("ookieLeaderboard",{
 		});
 	},
 	leaderboard_kick: function(board,id) {
-		if (this.settings.cookie == "none") return;
+		if (this.cookie == "none") return;
 		if (this.you == id) return; //?
 		fetch(this.baseURL+"/leaderboard/kick", {
 			method: "POST",
 			headers: {
-				"X-My-Cookie": this.settings.cookie,
+				"X-My-Cookie": this.cookie,
 				"X-My-Leaderboard-ID": board.toString(),
 				"X-My-Enemy-ID": id.toString(),
 			},
@@ -101,12 +103,12 @@ Game.registerMod("ookieLeaderboard",{
 		});
 	},
 	leaderboard_cycleboardcookie: function(id) {
-		if (this.settings.cookie == "none") return;
+		if (this.cookie == "none") return;
 		if (this.rateLimit(5, "lastcycle")) return;
 		fetch(this.baseURL+"/leaderboard/cycleboardcookie", {
 			method: "POST",
 			headers: {
-				"X-My-Cookie": this.settings.cookie,
+				"X-My-Cookie": this.cookie,
 				"X-My-Leaderboard-ID": id.toString(),
 			},
 		}).then(response => {
@@ -118,7 +120,7 @@ Game.registerMod("ookieLeaderboard",{
 		});
 	},
 	leaderboard_register: function(name) {
-		if (this.settings.cookie != "none") return;
+		if (this.cookie != "none") return;
 		if (this.waitingForRegister) return;
 		this.waitingForRegister = true;
 		fetch(this.baseURL+"/leaderboard/register", {
@@ -131,8 +133,15 @@ Game.registerMod("ookieLeaderboard",{
 			if (!response.ok) throw Error(response.statusText);
 			return response.text();
 		}).then(cookie => {
-			this.settings.cookie = cookie;
-			this.leaderboard_query();
+			if (this.dev) {
+				if (this.settings.cookiedev == "none")
+					this.settings.cookiedev = cookie;
+			} else {
+				this.settings.cookiereal = cookie;
+			}
+			this.cookie = cookie;
+			this.leaderboard_updateme();
+			setTimeout(()=>{this.leaderboard_query();}, 1*1000);
 			Game.Notify("Registered!",'',0,5);
 		}).catch(err => {
 			// TODO more stuff here...
@@ -143,10 +152,10 @@ Game.registerMod("ookieLeaderboard",{
 		if (this.queryInterval) clearInterval(this.queryInterval);
 		this.queryInterval = setInterval(()=>document.ookieLeaderboard.leaderboard_query(), this.queryS*1000); // dumb, I know
 		const MOD = this;
-		if (this.settings.cookie == "none") return;
+		if (this.cookie == "none") return;
 		fetch(this.baseURL+"/leaderboard/query", {
 			headers: {
-				"X-My-Cookie": this.settings.cookie,
+				"X-My-Cookie": this.cookie,
 			},
 		}).then(response => {
 			if (!response.ok) throw Error(response.statusText);
@@ -194,7 +203,7 @@ Game.registerMod("ookieLeaderboard",{
 
 
 	joinCreatePrompt: function() {
-		if (this.settings.cookie == "none") return this.registerButton();
+		if (this.cookie == "none") return this.registerButton();
 		if (!this.queriedOnce) return;
 		if (Object.keys(this.boards).length >= 5) {
 			Game.Notify("You can't join/create any more leaderboards!",'',0,5);
@@ -236,7 +245,7 @@ Game.registerMod("ookieLeaderboard",{
 		}
 	},
 	registerButton: function() {
-		if (this.settings.cookie != "none") return;
+		if (this.cookie != "none") return;
 		PlaySound('snd/clickOn2.mp3');
 		Game.Prompt('<id LeaderboardRegisterAAAA><h3>Register on c.ookie.click/er/</h3><div class="block" style="text-align:center;">Enter a name you want to use on leaderboards. This can\'t be changed afterwards. Don\'t choose something racist, sexist, offensive, etc please.</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardRegisterPrompt" value=""/></div>', [
 			["register", `
@@ -344,8 +353,14 @@ Game.registerMod("ookieLeaderboard",{
 
 
 	init: function() {
+		Game.original_loadModData = Game.loadModData;
+		Game.loadModData = () => { // this is bad
+			Game.loadModData = Game.original_loadModData;
+			Game.original_loadModData();
+			if (this && !this.settings) this.load();
+		};
+
 		document.ookieLeaderboard = this;//bleh
-		this.dev = 1;
 		this.updateS = this.dev ? 5 : 30;
 		this.queryS = this.dev ? 5 : 60;
 		if (this.dev) this.baseURL = "http://127.0.0.1:12345/er";
@@ -438,7 +453,7 @@ Game.registerMod("ookieLeaderboard",{
 				<div class="separatorBottom"></div>
 				<div class="productButtons" id="leaderboardProducts">
 					<div class="productButton" id="leaderboardProductJoinCreate" onclick="document.ookieLeaderboard.joinCreatePrompt()">
-						join/create a leaderboard
+						${this.dev?"(DEV ENABLED) ":""}join/create a leaderboard
 					</div>
 				</div>
 			</div>

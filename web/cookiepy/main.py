@@ -47,7 +47,9 @@ def leaderboard_create():
         return "name too big or too small", 400
     boardcookie = randcookie()
     cur = get_db().cursor()
-    cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
+    cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    if cid == None: abort(403)
+    cid = cid[0]
     if 5 <= cur.execute("SELECT COUNT(*) FROM joinedboards WHERE clicker = ?", (cid,)).fetchone()[0]:
         return "in too many boards", 400
     cur.execute("INSERT INTO boards(name, owner, cookie, only_owner_cookie) VALUES (?,?,?,0);", (name, cid, boardcookie))
@@ -62,7 +64,9 @@ def leaderboard_cycleboardcookie():
         return "a", 401
     boardid = int(request.headers.get('X-My-Leaderboard-ID', ''))
     cur = get_db().cursor()
-    clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
+    clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    if clickerid == None: abort(403)
+    clickerid = clickerid[0]
     r = cur.execute("UPDATE boards SET cookie = ? WHERE owner = ? AND id = ?", (randcookie(),clickerid,boardid))
     get_db().commit()
     if cur.rowcount > 0:
@@ -78,7 +82,9 @@ def leaderboard_kick():
     enemy = int(request.headers.get('X-My-Enemy-ID', ''))
     boardid = int(request.headers.get('X-My-Leaderboard-ID', ''))
     cur = get_db().cursor()
-    clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
+    clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    if clickerid == None: abort(403)
+    clickerid = clickerid[0]
     if enemy == clickerid:
         return "no...", 400
     r = cur.execute("UPDATE boards SET cookie = ? WHERE owner = ? AND id = ?", (randcookie(),clickerid,boardid))
@@ -108,7 +114,7 @@ def leaderboard_updateme():
     if cur.rowcount > 0:
         return "updated", 200
     else:
-        return "???", 500
+        return "???", 403
 
 @app.route('/er/leaderboard/query')
 def leaderboard_query():
@@ -116,7 +122,9 @@ def leaderboard_query():
     if len(cookie) != 32:
         return "", 401
     cur = get_db().cursor()
-    cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
+    cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    if cid == None: abort(403)
+    cid = cid[0]
     res = cur.execute("""
         SELECT j.board, c.name, c.cookies_per_second, c.total_cookies, c.id
         FROM joinedboards j
@@ -135,8 +143,12 @@ def leaderboard_leave():
     boardid = int(request.headers.get('X-My-Leaderboard-ID', ''))
     cur = get_db().cursor()
     # lol... atomicity and transactions? never heard of them...
-    clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()[0]
-    ownerid = cur.execute("SELECT owner FROM boards WHERE id = ?", (boardid,)).fetchone()[0]
+    clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    if clickerid == None: abort(403)
+    clickerid = clickerid[0]
+    ownerid = cur.execute("SELECT owner FROM boards WHERE id = ?", (boardid,)).fetchone()
+    if ownerid == None: abort(403)
+    ownerid = ownerid[0]
     if clickerid == ownerid:
         cur.execute("DELETE FROM joinedboards WHERE board = ?;", (boardid,))
         cur.execute("DELETE FROM boards WHERE id = ?;", (boardid,))

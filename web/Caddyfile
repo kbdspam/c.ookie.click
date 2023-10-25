@@ -12,7 +12,7 @@ http://c.ookie.click {
 			#roll_size 8MiB
 			roll_uncompressed
 			roll_keep 8
-			roll_keep_for 1
+			roll_keep_for 24h
 		}
 	}
 

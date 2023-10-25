@@ -1,5 +1,6 @@
 leaderboard.db
 venv
+__pycache__
 topeka
 thumbnail.png
 preview.png
