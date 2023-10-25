@@ -184,7 +184,7 @@ Game.registerMod("ookieLeaderboard",{
 			l("leaderboardTabBar").innerHTML = newTabBar;
 			document.querySelectorAll(".leaderboardTab").forEach((tab)=>AddEvent(tab,'click',(e)=>MOD._leaderboardTabClick(e)));
 			this.boards = boards;
-			if (foundCurrent) this.viewLeaderboardPage(this.tabOpenTo);
+			if (foundCurrent) this.viewLeaderboardPage(this.tabOpenTo, l('leaderboardTabPage').scrollTop);
 			else if (l("leaderboardTabPage")) l("leaderboardTabPage").remove(); // maybe the client got kicked
 		}).catch(()=>{
 			if (l("leaderboardTabBar").innerText == "loading...")
@@ -286,7 +286,7 @@ Game.registerMod("ookieLeaderboard",{
 		l('leaderboardKickPrompt').focus();
 		l('leaderboardKickPrompt').select();
 	},
-	viewLeaderboardPage: function(board) {
+	viewLeaderboardPage: function(board, scrollTop) {
 		this.tabOpenTo = board;
 		if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
 		for (let e of document.querySelectorAll(".leaderboardTab")) {
@@ -339,6 +339,7 @@ Game.registerMod("ookieLeaderboard",{
 			`)+`
 			</div>
 		`);
+		if (scrollTop != null) l('leaderboardTabPage').scrollTop = scrollTop;
 	},
 
 
@@ -384,6 +385,8 @@ Game.registerMod("ookieLeaderboard",{
 				//background: url(img/shipmentBackground.png);
 				border-radius: 25px 25px 0px 0px;
 				padding-top: 1px;
+				overflow-y: auto;
+				max-height: 300px;
 			}
 			#leaderboardTabPage > table {
 				margin: 20px 20px 20px 20px;
@@ -393,7 +396,8 @@ Game.registerMod("ookieLeaderboard",{
 				counter-increment: rowNumber;
 			}
 			#leaderboardTabPage > table tr td:first-child::before {
-				content: counter(rowNumber);
+				content: counter(rowNumber, decimal-leading-zero) ' ';
+				//float: right;
 				min-width: 1em;
 				margin-right: 0.5em;
 			}
@@ -409,8 +413,6 @@ Game.registerMod("ookieLeaderboard",{
 			}
 			#leaderboardTabPageTBody {
 				margin-top: 22px;
-				overflow-y: scroll;
-				max-height: 300px;
 			}
 			#leaderboardTabPageTBody:before {
 				line-height: 1em;
@@ -419,6 +421,7 @@ Game.registerMod("ookieLeaderboard",{
 			}
 			#leaderboardTabPageTBody > td {
 				//background: #fff;
+				//float: right;
 				overflow: hidden;
 			}
 		`;

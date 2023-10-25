@@ -186,6 +186,16 @@ def make_db():
     """)
     db.commit()
 
+def insert_lots_of_fake_people(targetboard):
+    import random
+    db = sqlite3.connect("leaderboard.db")
+    cur = db.cursor()
+    for i in range(100):
+        cur.execute("INSERT INTO clickers(name, cookie, total_cookies, cookies_per_second) VALUES (?,?,?,?);", ("faketest"+str(i), randcookie(), random.uniform(1, 10)*1000000,random.uniform(1, 10)*1000000))
+        cur.execute("INSERT INTO joinedboards(clicker, board) VALUES (?,?);", (cur.lastrowid, targetboard))
+    db.commit()
+
 if __name__ == '__main__':
     #make_db()
+    #insert_lots_of_fake_people(7)
     app.run(host='127.0.0.1', port=12345)

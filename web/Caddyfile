@@ -8,7 +8,12 @@ http://c.ookie.click {
 	root * /web/c.ookie.click/
 	file_server
 	log {
-		output file /var/log/caddy/c.ookie.click.log
+		output file /var/log/caddy/c.ookie.click.log {
+			#roll_size 8MiB
+			roll_uncompressed
+			roll_keep 8
+			roll_keep_for 1
+		}
 	}
 
 	redir / /er/
