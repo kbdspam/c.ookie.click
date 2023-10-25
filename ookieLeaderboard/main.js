@@ -160,7 +160,7 @@ Game.registerMod("ookieLeaderboard",{
 			let boards = {};
 			let foundCurrent = false;
 			for (let b of json.boardinfo) {
-				boards[b[0]] = {values:[],name:b[1],cookie:b[2],myrank:"9001"};
+				boards[b[0]] = {values:[],unsafe_name:b[1],cookie:b[2],myrank:"9001"};
 				if (b[0] == this.tabOpenTo) foundCurrent = true;
 			}
 			// parse json.boardvalues to fill out MOD.boardvalues[]
@@ -174,7 +174,7 @@ Game.registerMod("ookieLeaderboard",{
 				if (+v[3] == this.you) boards[boardid].myrank = rank;
 			}
 			for (const board in boards) {
-				newTabBar += `<div class="leaderboardTab subButton" id="leaderboardTab${board}">#${boards[board].myrank}<br>${this.escapeHTML(boards[board].name)}</div>`;
+				newTabBar += `<div class="leaderboardTab subButton" id="leaderboardTab${board}">#${boards[board].myrank}<br>${this.escapeHTML(boards[board].unsafe_name)}</div>`;
 			}
 			if (newTabBar == "") {
 				newTabBar = `
