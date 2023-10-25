@@ -3,9 +3,9 @@
  "ID": "hotInTopeka",
  "Author": "isekai hero of bhop",
  "Description": "Sometimes you just need to know if it's hot in Topeka...",
- "ModVersion": 4,
+ "ModVersion": 5,
  "GameVersion": 2.04,
- "Date": "2023-10-17",
+ "Date": "2023-10-25",
  "Disabled": 0,
  "Workshop": "3051106332"
 }
