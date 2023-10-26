@@ -468,6 +468,10 @@ Game.registerMod("ookieLeaderboard",{
 				content: "\\200C";
 				display: block;
 			}
+			#leaderboardTabPageTBody > tr > td {
+				//margin: 2px 4px 2px 0px;
+				//padding: 4px 8px;
+			}
 			#leaderboardTabPageTBody > td {
 				//background: #fff;
 				//float: right;
