@@ -362,6 +362,16 @@ Game.registerMod("ookieLeaderboard",{
 		if (scrollTop != null) l('leaderboardTabPage').scrollTop = scrollTop;
 	},
 
+	/*
+	onDataDelete: function() {
+		this.settings = JSON.parse('{"cookiedev":"none","cookiereal":"none"}');
+		this.cookie = "none";
+		if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
+		l("leaderboardTabBar").innerHTML = `
+			<a style="font-size:12px;" class="smallFancyButton" onclick="ookieLeaderboard.registerButton()">register</a>
+		`;
+	},
+	*/
 
 	init: function() {
 		Game.original_loadModData = Game.loadModData;
@@ -370,6 +380,18 @@ Game.registerMod("ookieLeaderboard",{
 			Game.original_loadModData();
 			if (this && !this.settings) this.load();
 		};
+		/*
+		Game.original_deleteModData = Game.deleteModData;
+		Game.deleteModData = (id) => {
+			Game.original_deleteModData(id);
+			if (id == "ookieLeaderboard") this.onDataDelete();
+		};
+		Game.original_deleteAllModData = Game.deleteAllModData;
+		Game.deleteAllModData = () => {
+			Game.original_deleteAllModData();
+			this.onDataDelete();
+		};
+		*/
 
 		document.ookieLeaderboard = this;//bleh
 		this.updateS = this.dev ? 5 : 30;
