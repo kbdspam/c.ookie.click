@@ -251,7 +251,7 @@ Game.registerMod("ookieLeaderboard",{
 			["register", `
 				const s = l('leaderboardRegisterPrompt').value;
 				const x = (new TextEncoder().encode(s)).length;
-				if (x >= 1 && x <= 32) {
+				if (x >= 1 && x <= 31) {
 					ookieLeaderboard.leaderboard_register(s);
 					Game.ClosePrompt();
 				}
