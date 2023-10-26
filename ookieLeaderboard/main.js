@@ -295,6 +295,17 @@ Game.registerMod("ookieLeaderboard",{
 		l('leaderboardKickPrompt').focus();
 		l('leaderboardKickPrompt').select();
 	},
+	cycleInviteButton: function() {
+		if (this.tabOpenTo == null) return;
+		PlaySound('snd/clickOn2.mp3');
+		Game.Prompt(`<id LeaderboardCycleCodeAAAA><h3>Are you sure you want to change the invite code?</h3><div class="block" style="text-align:center;">bleh</div>`, [
+			[loc("Yes"), `
+				ookieLeaderboard.leaderboard_cycleboardcookie(${this.tabOpenTo});
+				Game.ClosePrompt();
+			`],
+			loc("No"),
+		]);
+	},
 	viewLeaderboardPage: function(board, scrollTop) {
 		this.tabOpenTo = board;
 		if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
@@ -344,7 +355,7 @@ Game.registerMod("ookieLeaderboard",{
 			`+(bcookie==''?"":`
 				<a class="smallFancyButton" id="leaderboardTabGetCode" onclick="navigator.clipboard.writeText('${bcookie}').then(()=>Game.Notify('copied leaderboard invite code to clipboard','',0,5));">copy invite code</a>
 				<!-- Hello there -->
-				<a class="smallFancyButton" id="leaderboardTabCycleCode" onclick="document.ookieLeaderboard.leaderboard_cycleboardcookie(document.ookieLeaderboard.tabOpenTo);">change invite code</a>
+				<a class="smallFancyButton" id="leaderboardTabCycleCode" onclick="document.ookieLeaderboard.cycleInviteButton();">change invite code</a>
 			`)+`
 			</div>
 		`);
