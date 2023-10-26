@@ -1,7 +1,7 @@
 
 // this was intentionally written sloppily teehee
 // best practices btfo
-
+// bleh
 // init() called first. if a save exists then load()...
 
 Game.registerMod("ookieLeaderboard",{
