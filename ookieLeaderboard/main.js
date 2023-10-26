@@ -401,6 +401,7 @@ Game.registerMod("ookieLeaderboard",{
 				border-radius: 25px 25px 0px 0px;
 				padding-top: 1px;
 				overflow-y: auto;
+				overscroll-behavior-y: contain;
 				max-height: 300px;
 			}
 			#leaderboardTabPage > table {
