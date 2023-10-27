@@ -11,11 +11,15 @@ Game.registerMod("ookieLeaderboard",{
 		return JSON.stringify(this.settings);
 	},
 	load: function(str) {
+		this.initDatas(str);
+		setTimeout(()=>document.ookieLeaderboard.leaderboard_updateme(),2*1000);//bleh
+		this.leaderboard_query();
+	},
+	initDatas: function(str) {
 		//if (this.dev) str = '{"cookiedev":"none","cookiereal":"none"}';
 		this.settings = JSON.parse(str||'{"cookiedev":"none","cookiereal":"none"}');
 		this.cookie = this.dev ? this.settings.cookiedev : this.settings.cookiereal;
-		setTimeout(()=>document.ookieLeaderboard.leaderboard_updateme(),2*1000);//bleh
-		this.leaderboard_query();
+		if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
 		if (this.cookie == "none") {
 			l("leaderboardTabBar").innerHTML = `
 				<a style="font-size:12px;" class="smallFancyButton" onclick="ookieLeaderboard.registerButton()">register</a>
@@ -362,16 +366,6 @@ Game.registerMod("ookieLeaderboard",{
 		if (scrollTop != null) l('leaderboardTabPage').scrollTop = scrollTop;
 	},
 
-	/*
-	onDataDelete: function() {
-		this.settings = JSON.parse('{"cookiedev":"none","cookiereal":"none"}');
-		this.cookie = "none";
-		if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
-		l("leaderboardTabBar").innerHTML = `
-			<a style="font-size:12px;" class="smallFancyButton" onclick="ookieLeaderboard.registerButton()">register</a>
-		`;
-	},
-	*/
 
 	init: function() {
 		Game.original_loadModData = Game.loadModData;
@@ -380,18 +374,16 @@ Game.registerMod("ookieLeaderboard",{
 			Game.original_loadModData();
 			if (this && !this.settings) this.load();
 		};
-		/*
 		Game.original_deleteModData = Game.deleteModData;
 		Game.deleteModData = (id) => {
 			Game.original_deleteModData(id);
-			if (id == "ookieLeaderboard") this.onDataDelete();
+			if (id == "ookieLeaderboard") this.initDatas(null);
 		};
 		Game.original_deleteAllModData = Game.deleteAllModData;
 		Game.deleteAllModData = () => {
 			Game.original_deleteAllModData();
-			this.onDataDelete();
+			this.initDatas(null);
 		};
-		*/
 
 		document.ookieLeaderboard = this;//bleh
 		this.updateS = this.dev ? 5 : 30;
