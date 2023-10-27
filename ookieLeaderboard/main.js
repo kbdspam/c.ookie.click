@@ -187,7 +187,7 @@ Game.registerMod("ookieLeaderboard",{
 				if (+v[3] == this.you) boards[boardid].myrank = rank;
 			}
 			for (const board in boards) {
-				newTabBar += `<div class="leaderboardTab subButton" id="leaderboardTab${board}">#${boards[board].myrank}<br>${this.escapeHTML(boards[board].unsafe_name)}</div>`;
+				newTabBar += `<div class="leaderboardTab subButton" id="leaderboardTab${board}">#${boards[board].myrank} / ${boards[board].values.length}<br>${this.escapeHTML(boards[board].unsafe_name)}</div>`;
 			}
 			if (newTabBar == "") {
 				newTabBar = `
