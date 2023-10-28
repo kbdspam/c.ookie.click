@@ -1,7 +1,6 @@
 
 // this was intentionally written sloppily teehee
-// best practices btfo
-// bleh
+
 // init() called first. if a save exists then load()...
 
 Game.registerMod("ookieLeaderboard",{
@@ -368,12 +367,16 @@ Game.registerMod("ookieLeaderboard",{
 
 
 	init: function() {
+		// If we don't have mod data yet (first run) then the load() function won't run.
+		// Hook the load function to simplify ourself.
 		Game.original_loadModData = Game.loadModData;
-		Game.loadModData = () => { // this is bad
+		Game.loadModData = () => {
 			Game.loadModData = Game.original_loadModData;
 			Game.original_loadModData();
 			if (this && !this.settings) this.load();
 		};
+		// Deleting mod data doesn't work if the plugin is still loaded/enabled.
+		// Delete mod data -> save & quit -> mod saves data again -> oops...
 		Game.original_deleteModData = Game.deleteModData;
 		Game.deleteModData = (id) => {
 			Game.original_deleteModData(id);
@@ -462,7 +465,7 @@ Game.registerMod("ookieLeaderboard",{
 			}
 			#leaderboardTabPageTBody > tr > td {
 				//margin: 2px 4px 2px 0px;
-				//padding: 4px 8px;
+				padding: 4px 8px;
 			}
 			#leaderboardTabPageTBody > td {
 				//background: #fff;
@@ -482,9 +485,15 @@ Game.registerMod("ookieLeaderboard",{
 				</div>
 				<div class="separatorBottom"></div>
 				<div class="productButtons" id="leaderboardProducts">
+					<!--<div class="productButton" id="leaderboardChat" onclick="document.ookieLeaderboard.settingsMenu()">
+						settings
+					</div>-->
 					<div class="productButton" id="leaderboardProductJoinCreate" onclick="document.ookieLeaderboard.joinCreatePrompt()">
-						${this.dev?"(DEV ENABLED) ":""}join/create a leaderboard
+						${this.dev?"(DEV ENABLED) ":""}join/create leaderboard
 					</div>
+					<!--<div class="productButton" id="leaderboardChat" onclick="document.ookieLeaderboard.openChat()">
+						live-chat
+					</div>-->
 				</div>
 			</div>
 		`);
