@@ -216,14 +216,14 @@ Game.registerMod("ookieLeaderboard",{
 		PlaySound('snd/clickOn2.mp3');
 		Game.Prompt('<id LeaderboardJoinOrCreateXXXX><h3>Join or Create a Leaderboard</h3><div class="block" style="text-align:center;">insert a name or a leaderboard-cookie</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardJoinOrCreate" value=""/></div>', [
 			["join", `
-				const s = l('leaderboardJoinOrCreate').value;
+				const s = l('leaderboardJoinOrCreate').value.trim();
 				if (s.length == 32 && s.match(/^[0-9a-zA-Z]+$/)) {
 					ookieLeaderboard.leaderboard_join(s);
 					Game.ClosePrompt();
 				}
 			`],
 			["create", `
-				const s = l('leaderboardJoinOrCreate').value;
+				const s = l('leaderboardJoinOrCreate').value.trim();
 				const x = (new TextEncoder().encode(s)).length;
 				if (x >= 1 && x <= 31) {
 					ookieLeaderboard.leaderboard_create(s);
@@ -252,7 +252,7 @@ Game.registerMod("ookieLeaderboard",{
 		PlaySound('snd/clickOn2.mp3');
 		Game.Prompt('<id LeaderboardRegisterAAAA><h3>Register on c.ookie.click/er/</h3><div class="block" style="text-align:center;">Enter a name you want to use on leaderboards. This can\'t be changed afterwards. Don\'t choose something racist, sexist, offensive, etc please.</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardRegisterPrompt" value=""/></div>', [
 			["register", `
-				const s = l('leaderboardRegisterPrompt').value;
+				const s = l('leaderboardRegisterPrompt').value.trim();
 				const x = (new TextEncoder().encode(s)).length;
 				if (x >= 1 && x <= 31) {
 					ookieLeaderboard.leaderboard_register(s);
@@ -269,7 +269,7 @@ Game.registerMod("ookieLeaderboard",{
 		PlaySound('snd/clickOn2.mp3');
 		Game.Prompt('<id LeaderboardLeaveAAAAA><h3>Are you sure you want to leave?</h3><div class="block" style="text-align:center;">if you have double-checked that you\'re leaving the correct leaderboard then type in "sayonara" (without the quotes) and hit leave<br>(also if you\'re the owner then leaving will delete the leaderboard)</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardLeavePrompt" value=""/></div>', [
 			["leave", `
-				const s = l('leaderboardLeavePrompt').value;
+				const s = l('leaderboardLeavePrompt').value.trim();
 				if (s == "sayonara" || s == "さよなら" || s.startsWith("じゃ")) {
 					ookieLeaderboard.leaderboard_leave(ookieLeaderboard.tabOpenTo);
 					Game.ClosePrompt();
@@ -287,7 +287,6 @@ Game.registerMod("ookieLeaderboard",{
 		PlaySound('snd/clickOn2.mp3');
 		Game.Prompt(`<id LeaderboardKickerAA><h3>Kick ${name}?</h3><div class="block" style="text-align:center;">type anything in the box below and hit 'kick' to confirm<br>(kicking someone also changes the invite code)</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardKickPrompt" value=""/></div>`, [
 			["kick", `
-				const s = l('leaderboardKickPrompt').value;
 				if (l('leaderboardKickPrompt').value.length > 0) {
 					ookieLeaderboard.leaderboard_kick(${board},${id});
 					Game.ClosePrompt();

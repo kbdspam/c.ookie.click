@@ -28,7 +28,7 @@ def close_connection(exception):
 @app.route('/er/leaderboard/register', methods=['POST'])
 def leaderboard_register():
     #name = request.form.get("name", "") # TODO
-    name = request.headers.get('X-My-New-Leaderboard-Name', '')
+    name = request.headers.get('X-My-New-Leaderboard-Name', '').strip()
     if len(name) < 1 or len(name) > 31 or len(name.encode('utf-8')) > 31:
         return "name too big or too small", 400
     cookie = randcookie()
@@ -42,7 +42,7 @@ def leaderboard_create():
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "a", 401
-    name = request.headers.get('X-My-New-Leaderboard-Name', '')
+    name = request.headers.get('X-My-New-Leaderboard-Name', '').strip()
     if len(name) < 1 or len(name) > 31 or len(name.encode('utf-8')) > 31:
         return "name too big or too small", 400
     boardcookie = randcookie()

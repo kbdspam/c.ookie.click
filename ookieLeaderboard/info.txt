@@ -3,7 +3,7 @@
  "ID": "ookieLeaderboard",
  "Author": "isekai hero of bhop",
  "Description": "Make leaderboards with your friends and prove who's the ultimate clicker of cookies!",
- "ModVersion": 9,
+ "ModVersion": 10,
  "AllowSteamAchievs": 1,
  "GameVersion": 2.04,
  "Date": "2023-10-28",
