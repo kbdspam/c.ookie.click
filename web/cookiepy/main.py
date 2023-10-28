@@ -2,6 +2,8 @@ from flask import Flask,g,abort,request,jsonify
 import sqlite3
 import secrets
 import datetime
+import math
+import os.path
 
 # TODO: rate-limiting
 
@@ -13,11 +15,16 @@ def get_db():
         db = g._database = sqlite3.connect("leaderboard.db")
     return db
 
-def isnan(num):
-    return num != num
+def badnum(num):
+    return num != num or math.isinf(num)
 
 def randcookie():
     return ''.join(secrets.choice("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890") for _ in range(32))
+
+def disabled_registering():
+    return os.path.isfile("disabled_registering")
+def disabled_leaderboard_create():
+    return os.path.isfile("disabled_leaderboard_create")
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -27,6 +34,8 @@ def close_connection(exception):
 
 @app.route('/er/leaderboard/register', methods=['POST'])
 def leaderboard_register():
+    if disabled_registering():
+        return "db broken", 500 # shhh
     #name = request.form.get("name", "") # TODO
     name = request.headers.get('X-My-New-Leaderboard-Name', '').strip()
     if len(name) < 1 or len(name) > 31 or len(name.encode('utf-8')) > 31:
@@ -39,6 +48,8 @@ def leaderboard_register():
 
 @app.route('/er/leaderboard/create', methods=['POST'])
 def leaderboard_create():
+    if disabled_leaderboard_create():
+        return "db broken", 500 # shhh
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "a", 401
@@ -106,7 +117,7 @@ def leaderboard_updateme():
     data = request.headers.get('X-My-Update-Data', '-1|-1').split('|')
     total_cookies = float(data[0])
     cookies_per_second = float(data[1])
-    if isnan(total_cookies) or total_cookies < 0 or isnan(cookies_per_second) or cookies_per_second < 0:
+    if badnum(total_cookies) or total_cookies < 0 or badnum(cookies_per_second) or cookies_per_second < 0:
         raise Exception("nan or less than 0")
     cur = get_db().cursor()
     cur.execute("UPDATE clickers SET total_cookies = ?, cookies_per_second = ? WHERE cookie = ?", (total_cookies, cookies_per_second, cookie))
