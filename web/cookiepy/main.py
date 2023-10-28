@@ -17,6 +17,14 @@ def get_db():
 
 def badnum(num):
     return num != num or math.isinf(num)
+def isOkayName(s):
+    b = s.strip().encode("utf-8")
+    if len(b) < 1 or len(b) > 31:
+        return False
+    for c in b:
+        if c < 0x20:
+            return False
+    return True
 
 def randcookie():
     return ''.join(secrets.choice("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890") for _ in range(32))
@@ -38,7 +46,7 @@ def leaderboard_register():
         return "db broken", 500 # shhh
     #name = request.form.get("name", "") # TODO
     name = request.headers.get('X-My-New-Leaderboard-Name', '').strip()
-    if len(name) < 1 or len(name) > 31 or len(name.encode('utf-8')) > 31:
+    if not isOkayName(name):
         return "name too big or too small", 400
     cookie = randcookie()
     cur = get_db().cursor()
@@ -54,7 +62,7 @@ def leaderboard_create():
     if len(cookie) != 32:
         return "a", 401
     name = request.headers.get('X-My-New-Leaderboard-Name', '').strip()
-    if len(name) < 1 or len(name) > 31 or len(name.encode('utf-8')) > 31:
+    if not isOkayName(name):
         return "name too big or too small", 400
     boardcookie = randcookie()
     cur = get_db().cursor()
@@ -133,18 +141,19 @@ def leaderboard_query():
     if len(cookie) != 32:
         return "", 401
     cur = get_db().cursor()
-    cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    cid = cur.execute("SELECT id, can_mod FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
     if cid == None: abort(403)
     cid = cid[0]
+    can_mod = cid[1]
     res = cur.execute("""
-        SELECT j.board, c.name, c.cookies_per_second, c.total_cookies, c.id
+        SELECT j.board, c.name, c.cookies_per_second, c.total_cookies, c.id, c.okay_name
         FROM joinedboards j
         JOIN clickers c ON c.id = j.clicker
         WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = ?)
         ORDER BY j.board ASC, c.cookies_per_second DESC, c.total_cookies DESC, c.id ASC
     """, (cid,)).fetchall()
     boards = cur.execute("SELECT b.id, b.name, (CASE b.owner=? WHEN 1 THEN b.cookie ELSE '' END) FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ? ORDER BY j.board ASC", (cid,cid,)).fetchall()
-    return jsonify(boardinfo=boards,boardvalues=res,you=cid)
+    return jsonify(boardinfo=boards,boardvalues=res,you=cid,can_mod=can_mod)
 
 @app.route('/er/leaderboard/leave', methods=['POST'])
 def leaderboard_leave():
@@ -200,7 +209,7 @@ def make_db():
     db = sqlite3.connect("leaderboard.db")
     cur = db.cursor()
     cur.executescript("""
-        CREATE TABLE clickers (id INTEGER PRIMARY KEY, name TEXT NOT NULL, cookie TEXT NOT NULL, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0);
+        CREATE TABLE clickers (id INTEGER PRIMARY KEY, name TEXT NOT NULL, cookie TEXT NOT NULL, okay_name INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0);
         CREATE TABLE boards (id INTEGER PRIMARY KEY, name TEXT NOT NULL, owner INT NOT NULL, cookie TEXT NOT NULL, only_owner_cookie INT NOT NULL);
         CREATE TABLE joinedboards (clicker INT NOT NULL, board INT NOT NULL);
         

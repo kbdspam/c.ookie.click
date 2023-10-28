@@ -166,6 +166,8 @@ Game.registerMod("ookieLeaderboard",{
 		}).then(json => {
 			this.queriedOnce = true;
 			this.you = json.you;
+			this.can_mod = +json.can_mod;
+			l("leaderboardProductMod").style.display = this.can_mod ? "" : "none";
 			//console.log(json);
 			// setup tab bar from json.boardinfo [[boardid, boardname],]
 			let newTabBar = "";
@@ -205,6 +207,24 @@ Game.registerMod("ookieLeaderboard",{
 	},
 
 
+	joinGlobalPrompt: function() {
+		if (this.cookie == "none") return this.registerButton();
+		if (!this.queriedOnce) return;
+		if (1 in this.boards) return;
+		if (Object.keys(this.boards).length >= 5) {
+			Game.Notify("You can't join/create any more leaderboards!",'',0,5);
+			PlaySound('snd/clickOff2.mp3');
+			return;
+		}
+		PlaySound('snd/clickOn2.mp3');
+		Game.Prompt('<id LeaderboardJoinGlobalXXXX><h3>Join the Global🌎 leaderboard?</h3><div class="block" style="text-align:center;">If you have a bad or unverified name then it will be blurred for other players until it has been checked or changed.<br></div>', [
+			["join", `
+				ookieLeaderboard.leaderboard_join("gJKI0tXJEHSBGrEYRVv5pe6rNQcY1RxT");
+				Game.ClosePrompt();
+			`],
+			loc("Cancel"),
+		]);
+	},
 	joinCreatePrompt: function() {
 		if (this.cookie == "none") return this.registerButton();
 		if (!this.queriedOnce) return;
@@ -224,8 +244,7 @@ Game.registerMod("ookieLeaderboard",{
 			`],
 			["create", `
 				const s = l('leaderboardJoinOrCreate').value.trim();
-				const x = (new TextEncoder().encode(s)).length;
-				if (x >= 1 && x <= 31) {
+				if (ookieLeaderboard.isOkayName(s)) {
 					ookieLeaderboard.leaderboard_create(s);
 					Game.ClosePrompt();
 				}
@@ -253,8 +272,7 @@ Game.registerMod("ookieLeaderboard",{
 		Game.Prompt('<id LeaderboardRegisterAAAA><h3>Register on c.ookie.click/er/</h3><div class="block" style="text-align:center;">Enter a name you want to use on leaderboards. This can\'t be changed afterwards. Don\'t choose something racist, sexist, offensive, etc please.</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardRegisterPrompt" value=""/></div>', [
 			["register", `
 				const s = l('leaderboardRegisterPrompt').value.trim();
-				const x = (new TextEncoder().encode(s)).length;
-				if (x >= 1 && x <= 31) {
+				if (ookieLeaderboard.isOkayName(s)) {
 					ookieLeaderboard.leaderboard_register(s);
 					Game.ClosePrompt();
 				}
@@ -336,13 +354,17 @@ Game.registerMod("ookieLeaderboard",{
 				<tbody id="leaderboardTabPageTBody">
 		`;
 		for (const v of this.boards[board].values) {
-			// c.name, c.total_cookies, c.cookies_per_second, c.id
-			const style = (+v[3]==this.you) ? ' style="outline: rgba(255,255,255,.3) solid 2px"' : ''; // if self...
+			// c.name, c.total_cookies, c.cookies_per_second, c.id, c.okay_name
+
+			// The "global" leaderboard is board-ID 1. We only blur unchecked or :( names on this board.
+			const isyou = (+v[3]==this.you);
+			const blur = (!isyou && board==1 && !v[4]) ? ' class="blur"' : "";
+			const style = isyou ? ' style="outline: rgba(255,255,255,.3) solid 2px"' : '';
 			// lol. invisible button for uniform row size... just fix the padding lol TODO
 			const kickb = (bcookie=='')?'' : ((+v[3]==this.you)?`<td><a class="smallFancyButton" style="visibility: hidden;">kick</a></td>`:`<td><a class="smallFancyButton" onclick="document.ookieLeaderboard.kickButton(this,${board},${v[3]})">kick</a></td>`);
 			page += `
 				<tr${style}>
-				<td>${this.escapeHTML(v[0])}</td>
+				<td${blur}>${this.escapeHTML(v[0])}</td>
 				<td>${Beautify(v[1])}</td>
 				<td>${Beautify(v[2])}</td>
 				${kickb}
@@ -471,6 +493,12 @@ Game.registerMod("ookieLeaderboard",{
 				//float: right;
 				overflow: hidden;
 			}
+			.uncheckedName {
+				filter: blur(8px) !important;
+			}
+			.uncheckedName:hover {
+				filter: blur(0) !important;
+			}
 		`;
 		l('buildingsMaster').insertAdjacentHTML('afterend', `
 			<div id="ookieLeaderboard" class="row enabled">
@@ -490,6 +518,12 @@ Game.registerMod("ookieLeaderboard",{
 					<div class="productButton" id="leaderboardProductJoinCreate" onclick="document.ookieLeaderboard.joinCreatePrompt()">
 						${this.dev?"(DEV ENABLED) ":""}join/create leaderboard
 					</div>
+					<div class="productButton" id="leaderboardProductGlobal" onclick="document.ookieLeaderboard.joinGlobalPrompt()">
+						join global
+					</div>
+					<div class="productButton" id="leaderboardProductMod" onclick="document.ookieLeaderboard.openModWindow()" style="display: none;">
+						mod👑
+					</div>
 					<!--<div class="productButton" id="leaderboardChat" onclick="document.ookieLeaderboard.openChat()">
 						live-chat
 					</div>-->
@@ -505,5 +539,13 @@ Game.registerMod("ookieLeaderboard",{
 	},
 	escapeHTML: function(s) {
 		return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
+	},
+	isOkayName: function(s) {
+		const b = (new TextEncoder()).encode(s);
+		if (b.length < 1 && b.length > 31) return false;
+		for (const c of s)
+			if (c < 0x20)
+				return false;
+		return true;
 	},
 });
