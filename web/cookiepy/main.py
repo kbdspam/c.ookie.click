@@ -141,10 +141,10 @@ def leaderboard_query():
     if len(cookie) != 32:
         return "", 401
     cur = get_db().cursor()
-    cid = cur.execute("SELECT id, can_mod FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
-    if cid == None: abort(403)
-    cid = cid[0]
-    can_mod = cid[1]
+    res = cur.execute("SELECT id, can_mod FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    if res == None: abort(403)
+    cid = res[0]
+    can_mod = res[1]
     res = cur.execute(f"""
         SELECT
             j.board,

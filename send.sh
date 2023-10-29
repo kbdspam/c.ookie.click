@@ -1,5 +1,5 @@
 #!/bin/bash
-rsync -trvz --delete --dry-run \
+rsync -trvz --delete \
 	--exclude cookiepy/venv \
 	--exclude cookiepy/__pycache__ \
 	--exclude cookiepy/disabled_registering \
