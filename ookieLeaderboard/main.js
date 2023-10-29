@@ -180,7 +180,23 @@ Game.registerMod("ookieLeaderboard",{
 			// parse json.boardvalues to fill out MOD.boardvalues[]
 			let lastboard = null, rank = 0;
 			for (let v of json.boardvalues) {
-				// SELECT j.board, c.name, c.total_cookies, c.cookies_per_second, c.id
+				/*
+				SELECT
+					j.board,
+					(CASE
+							{can_mod}>0
+						OR  j.board!=1
+						OR  c.okay_name=1
+						OR  c.id={cid}
+						WHEN 1
+						THEN c.name
+						ELSE '???'
+					END),
+					c.cookies_per_second,
+					c.total_cookies,
+					c.id,
+					c.okay_name
+				*/
 				const boardid = v.splice(0,1)[0];
 				if (boardid != lastboard) [lastboard,rank] = [boardid,0];
 				++rank;
@@ -212,12 +228,12 @@ Game.registerMod("ookieLeaderboard",{
 		if (!this.queriedOnce) return;
 		if (1 in this.boards) return;
 		if (Object.keys(this.boards).length >= 5) {
-			Game.Notify("You can't join/create any more leaderboards!",'',0,5);
+			Game.Notify("You can't join any more leaderboards!",'',0,5);
 			PlaySound('snd/clickOff2.mp3');
 			return;
 		}
 		PlaySound('snd/clickOn2.mp3');
-		Game.Prompt('<id LeaderboardJoinGlobalXXXX><h3>Join the Global🌎 leaderboard?</h3><div class="block" style="text-align:center;">If you have a bad or unverified name then it will be blurred for other players until it has been checked or changed.<br></div>', [
+		Game.Prompt('<id LeaderboardJoinGlobalXXXX><h3>Join the Global🌎 leaderboard?</h3><div class="block" style="text-align:center;">Names are manually checked on this board so some might be blurred until someone verifies it\'s not spam or offensive.</div>', [
 			["join", `
 				ookieLeaderboard.leaderboard_join("gJKI0tXJEHSBGrEYRVv5pe6rNQcY1RxT");
 				Game.ClosePrompt();
@@ -358,7 +374,7 @@ Game.registerMod("ookieLeaderboard",{
 
 			// The "global" leaderboard is board-ID 1. We only blur unchecked or :( names on this board.
 			const isyou = (+v[3]==this.you);
-			const blur = (!isyou && board==1 && !v[4]) ? ' class="blur"' : "";
+			const blur = (!isyou && board==1 && v[4]!=1) ? ' class="blur"' : "";
 			const style = isyou ? ' style="outline: rgba(255,255,255,.3) solid 2px"' : '';
 			// lol. invisible button for uniform row size... just fix the padding lol TODO
 			const kickb = (bcookie=='')?'' : ((+v[3]==this.you)?`<td><a class="smallFancyButton" style="visibility: hidden;">kick</a></td>`:`<td><a class="smallFancyButton" onclick="document.ookieLeaderboard.kickButton(this,${board},${v[3]})">kick</a></td>`);

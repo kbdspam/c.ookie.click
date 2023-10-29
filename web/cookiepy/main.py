@@ -145,13 +145,32 @@ def leaderboard_query():
     if cid == None: abort(403)
     cid = cid[0]
     can_mod = cid[1]
-    res = cur.execute("""
-        SELECT j.board, c.name, c.cookies_per_second, c.total_cookies, c.id, c.okay_name
+    res = cur.execute(f"""
+        SELECT
+            j.board,
+            (CASE
+                    {can_mod}>0
+                OR  j.board!=1
+                OR  c.okay_name=1
+                OR  c.id={cid}
+                WHEN 1
+                THEN c.name
+                ELSE '???'
+            END),
+            c.cookies_per_second,
+            c.total_cookies,
+            c.id,
+            c.okay_name
         FROM joinedboards j
         JOIN clickers c ON c.id = j.clicker
-        WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = ?)
-        ORDER BY j.board ASC, c.cookies_per_second DESC, c.total_cookies DESC, c.id ASC
-    """, (cid,)).fetchall()
+        WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = {cid})
+        ORDER BY
+            j.board ASC,
+            (j.board=1 AND c.okay_name) DESC,
+            c.cookies_per_second DESC,
+            c.total_cookies DESC,
+            c.id ASC
+    """).fetchall()
     boards = cur.execute("SELECT b.id, b.name, (CASE b.owner=? WHEN 1 THEN b.cookie ELSE '' END) FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ? ORDER BY j.board ASC", (cid,cid,)).fetchall()
     return jsonify(boardinfo=boards,boardvalues=res,you=cid,can_mod=can_mod)
 
@@ -209,13 +228,39 @@ def make_db():
     db = sqlite3.connect("leaderboard.db")
     cur = db.cursor()
     cur.executescript("""
-        CREATE TABLE clickers (id INTEGER PRIMARY KEY, name TEXT NOT NULL, cookie TEXT NOT NULL, okay_name INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0);
-        CREATE TABLE boards (id INTEGER PRIMARY KEY, name TEXT NOT NULL, owner INT NOT NULL, cookie TEXT NOT NULL, only_owner_cookie INT NOT NULL);
+        CREATE TABLE clickers (id INTEGER PRIMARY KEY, okay_name INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0, cookie TEXT NOT NULL, name TEXT NOT NULL);
+        CREATE TABLE boards (id INTEGER PRIMARY KEY, owner INT NOT NULL, only_owner_cookie INT NOT NULL, cookie TEXT NOT NULL, name TEXT NOT NULL);
         CREATE TABLE joinedboards (clicker INT NOT NULL, board INT NOT NULL);
-        
+
         CREATE INDEX cookie_clickers ON clickers(cookie);
+        CREATE INDEX boards_cookie ON boards(cookie);
         CREATE INDEX cookie_joinedboards ON joinedboards(clicker);
     """)
+    db.commit()
+
+def migrate_db_000():
+    db = sqlite3.connect("leaderboard.db")
+    cur = db.cursor()
+    cur.executescript("""
+        DROP INDEX cookie_clickers;
+
+        CREATE TABLE temp_clickers (id INTEGER PRIMARY KEY, okay_name INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0, cookie TEXT NOT NULL, name TEXT NOT NULL);
+        INSERT INTO temp_clickers (id,name,cookie,total_cookies,cookies_per_second) SELECT * FROM clickers;
+        DROP TABLE clickers;
+        ALTER TABLE temp_clickers RENAME TO clickers;
+        CREATE INDEX cookie_clickers ON clickers(cookie);
+
+        UPDATE clickers SET can_mod=1 WHERE id=1 OR id=104;
+        UPDATE clickers SET okay_name=1 WHERE name != "1488";
+
+        CREATE TABLE temp_boards (id INTEGER PRIMARY KEY, owner INT NOT NULL, only_owner_cookie INT NOT NULL, cookie TEXT NOT NULL, name TEXT NOT NULL);
+        INSERT INTO temp_boards (id,name,owner,cookie,only_owner_cookie) SELECT * FROM boards;
+        DROP TABLE boards;
+        ALTER TABLE temp_boards RENAME TO boards;
+        CREATE INDEX boards_cookie ON boards(cookie);
+    """)
+    db.commit()
+    db.execute("VACUUM;")
     db.commit()
 
 def insert_lots_of_fake_people(targetboard):
@@ -227,7 +272,22 @@ def insert_lots_of_fake_people(targetboard):
         cur.execute("INSERT INTO joinedboards(clicker, board) VALUES (?,?);", (cur.lastrowid, targetboard))
     db.commit()
 
+"""
+notes for migrations:
+vps:   cp leaderboard.db main.py backup ; sudo systemctl stop cookiepy
+home:  ./send.sh  # send main.py
+home:  ./recv.sh  # receive database
+home:  # edit main.py to run migration code
+home:  python main.py  # run migration
+home:  # edit main.py to disable migration code
+home:  # edit send.sh to send database
+home:  ./send.sh  # send database
+vps:   sudo systemctl start cookiepy
+home:  # edit send.sh to remove sending database
+"""
+
 if __name__ == '__main__':
     #make_db()
+    #migrate_db_000()
     #insert_lots_of_fake_people(7)
     app.run(host='127.0.0.1', port=12345)
