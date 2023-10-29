@@ -5,6 +5,8 @@
 
 Game.registerMod("ookieLeaderboard",{
 	dev: 0,
+	devURL: 0,
+	devForcedAcc: "",
 
 	save: function() {
 		return JSON.stringify(this.settings);
@@ -18,7 +20,10 @@ Game.registerMod("ookieLeaderboard",{
 		//if (this.dev) str = '{"cookiedev":"none","cookiereal":"none"}';
 		this.settings = JSON.parse(str||'{"cookiedev":"none","cookiereal":"none"}');
 		this.cookie = this.dev ? this.settings.cookiedev : this.settings.cookiereal;
+		if (this.dev && this.devForcedAcc!="") this.cookie = this.devForcedAcc;
+		//console.log(this.settings);
 		if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
+		this.can_mod = this.you = this.boards = this.tabOpenTo = null;
 		if (this.cookie == "none") {
 			l("leaderboardTabBar").innerHTML = `
 				<a style="font-size:12px;" class="smallFancyButton" onclick="ookieLeaderboard.registerButton()">register</a>
@@ -136,11 +141,13 @@ Game.registerMod("ookieLeaderboard",{
 			if (!response.ok) throw Error(response.statusText);
 			return response.text();
 		}).then(cookie => {
-			if (this.dev) {
-				if (this.settings.cookiedev == "none")
-					this.settings.cookiedev = cookie;
-			} else {
-				this.settings.cookiereal = cookie;
+			if (!this.devForcedAcc) {
+				if (this.dev) {
+					if (this.settings.cookiedev == "none")
+						this.settings.cookiedev = cookie;
+				} else {
+					this.settings.cookiereal = cookie;
+				}
 			}
 			this.cookie = cookie;
 			this.leaderboard_updateme();
@@ -300,6 +307,7 @@ Game.registerMod("ookieLeaderboard",{
 	},
 	leaveButton: function() {
 		if (this.tabOpenTo == null) return;//?
+		if (this.tabOpenTo == 1 && this.boards[1].cookie!="") return; // it'd suck to accidentally delete global...
 		PlaySound('snd/clickOn2.mp3');
 		Game.Prompt('<id LeaderboardLeaveAAAAA><h3>Are you sure you want to leave?</h3><div class="block" style="text-align:center;">if you have double-checked that you\'re leaving the correct leaderboard then type in "sayonara" (without the quotes) and hit leave<br>(also if you\'re the owner then leaving will delete the leaderboard)</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardLeavePrompt" value=""/></div>', [
 			["leave", `
@@ -374,7 +382,7 @@ Game.registerMod("ookieLeaderboard",{
 
 			// The "global" leaderboard is board-ID 1. We only blur unchecked or :( names on this board.
 			const isyou = (+v[3]==this.you);
-			const blur = (!isyou && board==1 && v[4]!=1) ? ' class="blur"' : "";
+			const blur = (!isyou && board==1 && v[4]!=1) ? ' class="blurst"' : "";
 			const style = isyou ? ' style="outline: rgba(255,255,255,.3) solid 2px"' : '';
 			// lol. invisible button for uniform row size... just fix the padding lol TODO
 			const kickb = (bcookie=='')?'' : ((+v[3]==this.you)?`<td><a class="smallFancyButton" style="visibility: hidden;">kick</a></td>`:`<td><a class="smallFancyButton" onclick="document.ookieLeaderboard.kickButton(this,${board},${v[3]})">kick</a></td>`);
@@ -428,7 +436,7 @@ Game.registerMod("ookieLeaderboard",{
 		document.ookieLeaderboard = this;//bleh
 		this.updateS = this.dev ? 5 : 30;
 		this.queryS = this.dev ? 5 : 60;
-		if (this.dev) this.baseURL = "http://127.0.0.1:12345/er";
+		if (this.dev && this.devURL) this.baseURL = "http://127.0.0.1:12345/er";
 		else this.baseURL = "https://c.ookie.click/er";
 
 		document.head.appendChild(document.createElement("style")).innerHTML = `
@@ -509,10 +517,10 @@ Game.registerMod("ookieLeaderboard",{
 				//float: right;
 				overflow: hidden;
 			}
-			.uncheckedName {
+			.blurst {
 				filter: blur(8px) !important;
 			}
-			.uncheckedName:hover {
+			.blurst:hover {
 				filter: blur(0) !important;
 			}
 		`;
@@ -559,7 +567,7 @@ Game.registerMod("ookieLeaderboard",{
 	isOkayName: function(s) {
 		const b = (new TextEncoder()).encode(s);
 		if (b.length < 1 && b.length > 31) return false;
-		for (const c of s)
+		for (const c of b)
 			if (c < 0x20)
 				return false;
 		return true;

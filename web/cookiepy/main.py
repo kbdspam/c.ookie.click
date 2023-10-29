@@ -106,6 +106,7 @@ def leaderboard_kick():
     clickerid = clickerid[0]
     if enemy == clickerid:
         return "no...", 400
+    ### TODO: Don't edit cookie if global/ID1
     r = cur.execute("UPDATE boards SET cookie = ? WHERE owner = ? AND id = ?", (randcookie(),clickerid,boardid))
     if cur.rowcount > 0:
         r = cur.execute("DELETE FROM joinedboards WHERE clicker = ? AND board = ?", (enemy,boardid))
