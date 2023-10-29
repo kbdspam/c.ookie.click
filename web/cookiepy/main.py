@@ -27,7 +27,7 @@ def isOkayName(s):
     return True
 
 def randcookie():
-    return ''.join(secrets.choice("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890") for _ in range(32))
+    return ''.join(secrets.choice("0123456789abcdefABCDEF") for _ in range(32))
 
 def disabled_registering():
     return os.path.isfile("disabled_registering")
@@ -51,6 +51,7 @@ def leaderboard_register():
     cookie = randcookie()
     cur = get_db().cursor()
     cur.execute("INSERT INTO clickers(name, cookie) VALUES (?,?);", (name, cookie))
+    #cur.execute("INSERT INTO joinedboards(clicker, board) VALUES (?,1);", (cur.last_insert_rowid,))
     get_db().commit()
     return cookie, 200
 
