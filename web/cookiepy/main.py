@@ -102,15 +102,25 @@ def leaderboard_kick():
     enemy = int(request.headers.get('X-My-Enemy-ID', ''))
     boardid = int(request.headers.get('X-My-Leaderboard-ID', ''))
     cur = get_db().cursor()
-    clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
-    if clickerid == None: abort(403)
-    clickerid = clickerid[0]
+    res = cur.execute("SELECT id, can_mod FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    if res == None: abort(403)
+    clickerid = res[0]
     if enemy == clickerid:
         return "no...", 400
-    ### TODO: Don't edit cookie if global/ID1
-    r = cur.execute("UPDATE boards SET cookie = ? WHERE owner = ? AND id = ?", (randcookie(),clickerid,boardid))
+    if boardid == 1:
+        can_mod = res[1]
+        if can_mod >= 2:
+            cur.execute("DELETE FROM joinedboards WHERE clicker = ? AND board = ?", (enemy,boardid))
+            if cur.rowcount > 0:
+                get_db().commit()
+                return "kicked", 200
+            else:
+                return "not in board?", 400
+        else:
+            return "no dice", 400
+    cur.execute("UPDATE boards SET cookie = ? WHERE owner = ? AND id = ?", (randcookie(),clickerid,boardid))
     if cur.rowcount > 0:
-        r = cur.execute("DELETE FROM joinedboards WHERE clicker = ? AND board = ?", (enemy,boardid))
+        cur.execute("DELETE FROM joinedboards WHERE clicker = ? AND board = ?", (enemy,boardid))
         if cur.rowcount > 0:
             get_db().commit()
             return "kicked", 200
