@@ -9,7 +9,7 @@ http://c.ookie.click {
 	file_server
 	log {
 		output file /var/log/caddy/c.ookie.click.log {
-			#roll_size 8MiB
+			roll_size 1000MiB
 			roll_uncompressed
 			roll_keep 8
 			roll_keep_for 168h
