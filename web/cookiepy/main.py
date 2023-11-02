@@ -55,6 +55,24 @@ def leaderboard_register():
     get_db().commit()
     return cookie, 200
 
+@app.route('/er/leaderboard/changemyname', methods=['POST'])
+def leaderboard_changemyname():
+    if disabled_registering():
+        return "db broken", 500 # shhh
+    cookie = request.headers.get('X-My-Cookie', '')
+    if len(cookie) != 32:
+        return "a", 401
+    name = request.headers.get('X-My-New-Leaderboard-Name', '').strip()
+    if not isOkayName(name):
+        return "name too big or too small", 400
+    cur = get_db().cursor()
+    r = cur.execute("UPDATE clickers SET name=?, okay_name=0 WHERE cookie = ?", (name,cookie))
+    get_db().commit()
+    if cur.rowcount > 0:
+        return "changed", 200
+    else:
+        return "no?", 400
+
 @app.route('/er/leaderboard/create', methods=['POST'])
 def leaderboard_create():
     if disabled_leaderboard_create():
@@ -91,6 +109,26 @@ def leaderboard_cycleboardcookie():
     get_db().commit()
     if cur.rowcount > 0:
         return "cycled", 200
+    else:
+        return "no?", 400
+
+@app.route('/er/leaderboard/changeboardname', methods=['POST'])
+def leaderboard_changeboardname():
+    cookie = request.headers.get('X-My-Cookie', '')
+    if len(cookie) != 32:
+        return "a", 401
+    boardid = int(request.headers.get('X-My-Leaderboard-ID', ''))
+    name = request.headers.get('X-My-New-Leaderboard-Name', '').strip()
+    if not isOkayName(name):
+        return "name too big or too small", 400
+    cur = get_db().cursor()
+    clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    if clickerid == None: abort(403)
+    clickerid = clickerid[0]
+    r = cur.execute("UPDATE boards SET name = ? WHERE owner = ? AND id = ?", (name,clickerid,boardid))
+    get_db().commit()
+    if cur.rowcount > 0:
+        return "changed", 200
     else:
         return "no?", 400
 

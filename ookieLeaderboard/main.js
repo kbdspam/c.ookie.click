@@ -92,6 +92,22 @@ Game.registerMod("ookieLeaderboard",{
 			Game.Notify('failed to create leaderboard','The server might be down...',0,5);
 		});
 	},
+	leaderboard_changeboardname: function(board,name) {
+		if (this.cookie == "none") return;
+		fetch(this.baseURL+"/leaderboard/changeboardname", {
+			method: "POST",
+			headers: {
+				"X-My-Cookie": this.cookie,
+				"X-My-Leaderboard-ID": board.toString(),
+				"X-My-New-Leaderboard-Name": name,
+			},
+		}).then(response => {
+			if (!response.ok) throw Error(response.statusText);
+			this.leaderboard_query();
+		}).catch(err => {
+			Game.Notify('failed to change leaderboard name','The server might be down...',0,5);
+		});
+	},
 	leaderboard_kick: function(board,id) {
 		if (this.cookie == "none") return;
 		if (this.you == id) return; //?
@@ -277,6 +293,22 @@ Game.registerMod("ookieLeaderboard",{
 		l('leaderboardJoinOrCreate').focus();
 		l('leaderboardJoinOrCreate').select();
 	},
+	changeBoardNamePrompt: function() {
+		if (this.tabOpenTo == null) return;
+		PlaySound('snd/clickOn2.mp3');
+		Game.Prompt('<id LeaderboardChangeBoardName><h3>Change a leaderboard\'s name</h3><div class="block" style="text-align:center;">well? what\'s it gonna be???</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardChangeBoardNameInput" value=""/></div>', [
+			["join", `
+				const s = l('leaderboardChangeBoardNameInput').value.trim();
+				if (ookieLeaderboard.isOkayName(s)) {
+					ookieLeaderboard.leaderboard_changeboardname(${this.tabOpenTo},s);
+					Game.ClosePrompt();
+				}
+			`],
+			loc("Cancel"),
+		]);
+		l('leaderboardChangeBoardNameInput').focus();
+		l('leaderboardChangeBoardNameInput').select();
+	},
 	_leaderboardTabClick: function(e) {
 		const item = e.target.id.split("leaderboardTab")[1]; // this is so stupid but it's so easy
 		if (this.tabOpenTo == +item) {
@@ -350,6 +382,9 @@ Game.registerMod("ookieLeaderboard",{
 			loc("No"),
 		]);
 	},
+	settingsMenu: function() {
+		// no fucking clue what kind of prompt to make here...
+	},
 	viewLeaderboardPage: function(board, scrollTop) {
 		this.tabOpenTo = board;
 		if (l("leaderboardTabPage")) l("leaderboardTabPage").remove();
@@ -389,8 +424,8 @@ Game.registerMod("ookieLeaderboard",{
 			page += `
 				<tr${style}>
 				<td${blur}>${this.escapeHTML(v[0])}</td>
-				<td>${Beautify(v[1])}</td>
-				<td>${Beautify(v[2])}</td>
+				<td>${this.beautifyNoInfin(v[1])}</td>
+				<td>${this.beautifyNoInfin(v[2])}</td>
 				${kickb}
 				</tr>
 			`;
@@ -404,6 +439,7 @@ Game.registerMod("ookieLeaderboard",{
 				<a class="smallFancyButton" id="leaderboardTabGetCode" onclick="navigator.clipboard.writeText('${bcookie}').then(()=>Game.Notify('copied leaderboard invite code to clipboard','',0,5));">copy invite code</a>
 				<!-- Hello there -->
 				<a class="smallFancyButton" id="leaderboardTabCycleCode" onclick="document.ookieLeaderboard.cycleInviteButton();">change invite code</a>
+				<a class="smallFancyButton" id="leaderboardChangeName" onclick="document.ookieLeaderboard.changeBoardNamePrompt();">change board name</a>
 			`)+`
 			</div>
 		`);
@@ -571,5 +607,15 @@ Game.registerMod("ookieLeaderboard",{
 			if (c < 0x20)
 				return false;
 		return true;
+	},
+	beautifyNoInfin: function(f) {
+		let x = Beautify(f);
+		if (x == "Infinity") {
+			let orig_format = Game.prefs.format;
+			Game.prefs.format = 1; // short probably
+			x = Beautify(f);
+			Game.prefs.format = orig_format;
+		}
+		return x;
 	},
 });
