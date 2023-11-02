@@ -216,7 +216,7 @@ def leaderboard_query():
         WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = {cid})
         ORDER BY
             j.board ASC,
-            (j.board=1 AND c.okay_name) DESC,
+            (j.board=1 AND (c.okay_name>0 OR c.id={cid})) DESC,
             c.cookies_per_second DESC,
             c.total_cookies DESC,
             c.id ASC
