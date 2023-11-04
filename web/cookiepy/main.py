@@ -66,7 +66,11 @@ def leaderboard_changemyname():
     if not isOkayName(name):
         return "name too big or too small", 400
     cur = get_db().cursor()
-    r = cur.execute("UPDATE clickers SET name=?, okay_name=0 WHERE cookie = ?", (name,cookie))
+    r = cur.execute("""
+        UPDATE clickers SET
+        name=?,
+        okay_name=(CASE okay_name WHEN -2 THEN -2 ELSE okay_name END)
+        WHERE cookie = ?""", (name,cookie))
     get_db().commit()
     if cur.rowcount > 0:
         return "changed", 200
