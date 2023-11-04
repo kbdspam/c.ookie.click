@@ -175,9 +175,11 @@ def leaderboard_updateme():
     data = request.headers.get('X-My-Update-Data', '-1|-1').split('|')
     total_cookies = float(data[0])
     cookies_per_second = float(data[1])
-    if badnum(total_cookies) or total_cookies < 0 or badnum(cookies_per_second) or cookies_per_second < 0:
-        raise Exception("nan or less than 0")
     cur = get_db().cursor()
+    if badnum(total_cookies) or total_cookies < 0 or badnum(cookies_per_second) or cookies_per_second < 0:
+        cur.execute("UPDATE clickers SET okay_name=-2 WHERE cookie = ?", (cookie,))
+        get_db().commit()
+        raise Exception("nan or less than 0")
     cur.execute("UPDATE clickers SET total_cookies = ?, cookies_per_second = ? WHERE cookie = ?", (total_cookies, cookies_per_second, cookie))
     get_db().commit()
     if cur.rowcount > 0:
@@ -210,7 +212,7 @@ def leaderboard_query():
             c.cookies_per_second,
             c.total_cookies,
             c.id,
-            c.okay_name
+            (c.okay_name>0)
         FROM joinedboards j
         JOIN clickers c ON c.id = j.clicker
         WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = {cid})

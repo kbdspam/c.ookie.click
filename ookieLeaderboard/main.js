@@ -218,7 +218,7 @@ Game.registerMod("ookieLeaderboard",{
 					c.cookies_per_second,
 					c.total_cookies,
 					c.id,
-					c.okay_name
+					(c.okay_name>0)
 				*/
 				const boardid = v.splice(0,1)[0];
 				if (boardid != lastboard) [lastboard,rank] = [boardid,0];
@@ -417,7 +417,7 @@ Game.registerMod("ookieLeaderboard",{
 
 			// The "global" leaderboard is board-ID 1. We only blur unchecked or :( names on this board.
 			const isyou = (+v[3]==this.you);
-			const blur = (!isyou && board==1 && v[4]!=1) ? ' class="blurst"' : "";
+			const blur = (!isyou && board==1 && v[4]<1) ? ' class="blurst"' : "";
 			const style = isyou ? ' style="outline: rgba(255,255,255,.3) solid 2px"' : '';
 			// lol. invisible button for uniform row size... just fix the padding lol TODO
 			const kickb = (bcookie=='')?'' : ((+v[3]==this.you)?`<td><a class="smallFancyButton" style="visibility: hidden;">kick</a></td>`:`<td><a class="smallFancyButton" onclick="document.ookieLeaderboard.kickButton(this,${board},${v[3]})">kick</a></td>`);
