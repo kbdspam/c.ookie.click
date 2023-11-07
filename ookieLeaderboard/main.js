@@ -256,7 +256,7 @@ Game.registerMod("ookieLeaderboard",{
 			return;
 		}
 		PlaySound('snd/clickOn2.mp3');
-		Game.Prompt('<id LeaderboardJoinGlobalXXXX><h3>Join the Global🌎 leaderboard?</h3><div class="block" style="text-align:center;">Names are manually checked on this board so some might be blurred until someone verifies it\'s not spam or offensive.</div>', [
+		Game.Prompt('<id LeaderboardJoinGlobalXXXX><h3>Join the Global🌎 leaderboard?</h3>', [
 			["join", `
 				ookieLeaderboard.leaderboard_join("gJKI0tXJEHSBGrEYRVv5pe6rNQcY1RxT");
 				Game.ClosePrompt();
