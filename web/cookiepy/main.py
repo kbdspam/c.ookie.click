@@ -69,7 +69,7 @@ def leaderboard_changemyname():
     r = cur.execute("""
         UPDATE clickers SET
         name=?,
-        okay_name=(CASE okay_name WHEN -2 THEN -2 ELSE okay_name END)
+        okay_name=(CASE can_mod = 0 AND (okay_name=1 OR okay_name=-1) WHEN 1 THEN 0 ELSE okay_name END)
         WHERE cookie = ?""", (name,cookie))
     get_db().commit()
     if cur.rowcount > 0:
@@ -197,10 +197,11 @@ def leaderboard_query():
     if len(cookie) != 32:
         return "", 401
     cur = get_db().cursor()
-    res = cur.execute("SELECT id, can_mod FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    res = cur.execute("SELECT id, can_mod, name FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
     if res == None: abort(403)
     cid = res[0]
     can_mod = res[1]
+    unsafe_my_name = res[2]
     res = cur.execute(f"""
         SELECT
             j.board,
@@ -228,7 +229,7 @@ def leaderboard_query():
             c.id ASC
     """).fetchall()
     boards = cur.execute("SELECT b.id, b.name, (CASE b.owner=? WHEN 1 THEN b.cookie ELSE '' END) FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ? ORDER BY j.board ASC", (cid,cid,)).fetchall()
-    resp = jsonify(boardinfo=boards,boardvalues=res,you=cid,can_mod=can_mod)
+    resp = jsonify(boardinfo=boards,boardvalues=res,you=cid,can_mod=can_mod,unsafe_my_name=unsafe_my_name)
     resp.headers["Cache-Control"] = "no-store"
     return resp
 

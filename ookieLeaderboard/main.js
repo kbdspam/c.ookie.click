@@ -142,6 +142,21 @@ Game.registerMod("ookieLeaderboard",{
 			Game.Notify('failed to change leaderboard name','The server might be down...',0,5);
 		});
 	},
+	leaderboard_changemyname: function(name) {
+		if (this.cookie == "none") return;
+		fetch(this.baseURL+"/leaderboard/changemyname", {
+			method: "POST",
+			headers: {
+				"X-My-Cookie": this.cookie,
+				"X-My-New-Leaderboard-Name": name,
+			},
+		}).then(response => {
+			if (!response.ok) throw Error(response.statusText);
+			this.leaderboard_query();
+		}).catch(err => {
+			Game.Notify('failed to change your name','The server might be down...',0,5);
+		});
+	},
 	leaderboard_kick: function(board,id) {
 		if (this.cookie == "none") return;
 		if (this.you == id) return; //?
@@ -227,6 +242,7 @@ Game.registerMod("ookieLeaderboard",{
 			this.queriedOnce = true;
 			this.you = json.you;
 			this.can_mod = +json.can_mod;
+			this.unsafe_my_name = json.unsafe_my_name;
 			l("leaderboardProductMod").style.display = this.can_mod ? "" : "none";
 			//console.log(json);
 			// setup tab bar from json.boardinfo [[boardid, boardname],]
@@ -345,6 +361,22 @@ Game.registerMod("ookieLeaderboard",{
 		]);
 		l('leaderboardChangeBoardNameInput').focus();
 		l('leaderboardChangeBoardNameInput').select();
+	},
+	changeMyNamePrompt: function() {
+		if (this.cookie == "none") return;
+		PlaySound('snd/clickOn2.mp3');
+		Game.Prompt(`<id LeaderboardChangeMyName><h3>Change YOUR name!!!</h3><div class="block" style="text-align:center;">hey :) you can change your name if you want :)<br>(it's currently '${this.escapeHTML(this.unsafe_my_name)}')</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardChangeMyNameInput" value=""/></div>`, [
+			["change", `
+				const s = l('leaderboardChangeMyNameInput').value.trim();
+				if (ookieLeaderboard.isOkayName(s)) {
+					ookieLeaderboard.leaderboard_changemyname(s);
+					Game.ClosePrompt();
+				}
+			`],
+			loc("Cancel"),
+		]);
+		l('leaderboardChangeMyNameInput').focus();
+		l('leaderboardChangeMyNameInput').select();
 	},
 	_leaderboardTabClick: function(e) {
 		const item = e.target.id.split("leaderboardTab")[1]; // this is so stupid but it's so easy
@@ -617,6 +649,9 @@ Game.registerMod("ookieLeaderboard",{
 					</div>
 					<div class="productButton" id="leaderboardProductGlobal" onclick="document.ookieLeaderboard.joinGlobalPrompt()">
 						join global
+					</div>
+					<div class="productButton" id="leaderboardProductChangemyname" onclick="document.ookieLeaderboard.changeMyNamePrompt()">
+						change my name
 					</div>
 					<div class="productButton" id="leaderboardProductMod" onclick="document.ookieLeaderboard.openModWindow()" style="display: none;">
 						mod👑
