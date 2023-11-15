@@ -19,5 +19,7 @@ http://c.ookie.click {
 	redir / /er/
 	#redir /er/cf https://dash.cloudflare.com/x/ookie.click
 
+	#reverse_proxy /er/longpoll localhost:4343
+	#reverse_proxy /er/leaderboard/wstimer localhost:4300
 	reverse_proxy /er/leaderboard/* unix//tmp/cookiepy.sock # todo?
 }

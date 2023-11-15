@@ -2,6 +2,8 @@
 backup
 venv
 __pycache__
+nogit
 topeka
 thumbnail.png
 preview.png
+longpoll

@@ -32,9 +32,41 @@ Game.registerMod("ookieLeaderboard",{
 	},
 
 
+	leaderboard_ws: function(force) {
+		// Speed hack (Cheat Engine?) makes timers elapse instantly and spam requests.
+		// https://c.ookie.click/er/nogit/requestspam.png
+		// Websocket server to tell the request-spammers when to send requests because idk.
+		if (this.ws) {
+			if (!force) return;
+			if (!this.ws.closed) {
+				this.ws.fuck = true;
+				this.ws.close();
+			}
+		}
+		this.ws = new WebSocket("wss://c.ookie.click/er/leaderboard/wstimer");
+		this.ws.onopen = () => {
+			// nothing;
+		};
+		this.ws.onmessage = (e) => {
+			this.leaderboard_updateme();
+			this.wscycle = ((this.wscycle||0) + 1) % 2;
+			if (this.wscycle & 1) this.leaderboard_query();
+		};
+		this.ws.onclose = (e) => {
+			this.ws.closed = true;
+			console.log('Socket is closed. Reconnect will be attempted in 15 seconds.', e.reason);
+			if (!this.ws.fuck) setTimeout(()=>{this.leaderboard_ws(1);}, 30*1000);
+		};
+		this.ws.onerror = (err) => {
+			console.error('Socket encountered error: ', err.message, 'Closing socket');
+			this.ws.close();
+		};
+	},
 	leaderboard_updateme: function() {
-		if (this.updatemeInterval) clearInterval(this.updatemeInterval);
-		this.updatemeInterval = setInterval(()=>document.ookieLeaderboard.leaderboard_updateme(), this.updateS*1000); // dumb, I know
+		if (!this.ws) {
+			if (this.updatemeInterval) clearInterval(this.updatemeInterval);
+			this.updatemeInterval = setInterval(()=>document.ookieLeaderboard.leaderboard_updateme(), this.updateS*1000); // dumb, I know
+		}
 		if (this.cookie == "none") return;
 		fetch(this.baseURL+"/leaderboard/updateme", {
 			method: "POST",
@@ -42,7 +74,9 @@ Game.registerMod("ookieLeaderboard",{
 				"X-My-Cookie": this.cookie,
 				"X-My-Update-Data": Game.cookiesEarned+'|'+Game.cookiesPsRaw,
 			},
-		}).then(response => {});
+		}).then(response => {
+			if (response.status == 429) this.leaderboard_ws(0);
+		});
 	},
 	leaderboard_leave: function(id) {
 		if (this.cookie == "none") return;
@@ -175,8 +209,10 @@ Game.registerMod("ookieLeaderboard",{
 		});
 	},
 	leaderboard_query: function() {
-		if (this.queryInterval) clearInterval(this.queryInterval);
-		this.queryInterval = setInterval(()=>document.ookieLeaderboard.leaderboard_query(), this.queryS*1000); // dumb, I know
+		if (!this.ws) {
+			if (this.queryInterval) clearInterval(this.queryInterval);
+			this.queryInterval = setInterval(()=>document.ookieLeaderboard.leaderboard_query(), this.queryS*1000); // dumb, I know
+		}
 		const MOD = this;
 		if (this.cookie == "none") return;
 		fetch(this.baseURL+"/leaderboard/query", {
@@ -184,6 +220,7 @@ Game.registerMod("ookieLeaderboard",{
 				"X-My-Cookie": this.cookie,
 			},
 		}).then(response => {
+			if (response.status == 429) this.leaderboard_ws(0);
 			if (!response.ok) throw Error(response.statusText);
 			return response.json();
 		}).then(json => {

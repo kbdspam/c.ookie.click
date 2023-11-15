@@ -1,0 +1,14 @@
+import asyncio
+import websockets
+
+async def show_time(websocket):
+    while True:
+        await websocket.send(":3")
+        await asyncio.sleep(30)
+
+async def main():
+    async with websockets.serve(show_time, "localhost", 4300):
+        await asyncio.Future()  # run forever
+
+if __name__ == "__main__":
+    asyncio.run(main())
