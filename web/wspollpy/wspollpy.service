@@ -1,0 +1,13 @@
+[Unit]
+Description=Websocket dealer for c.ookie.click/er/leaderboard
+After=network.target
+
+[Service]
+User=admin
+Group=caddy
+WorkingDirectory=/web/wspollpy
+Environment="PATH=/web/wspollpy/venv/bin"
+ExecStart=/web/wspollpy/venv/bin/python3 main.py
+
+[Install]
+WantedBy=multi-user.target
