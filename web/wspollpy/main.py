@@ -4,7 +4,7 @@ import websockets
 async def show_time(websocket):
     while True:
         await websocket.send(":3")
-        await asyncio.sleep(30)
+        await asyncio.sleep(60)
 
 async def main():
     async with websockets.serve(show_time, "localhost", 4300):

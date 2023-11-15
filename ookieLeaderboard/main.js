@@ -49,8 +49,8 @@ Game.registerMod("ookieLeaderboard",{
 		};
 		this.ws.onmessage = (e) => {
 			this.leaderboard_updateme();
-			this.wscycle = ((this.wscycle||0) + 1) % 2;
-			if (this.wscycle & 1) this.leaderboard_query();
+			/*this.wscycle = ((this.wscycle||0) + 1) % 2;
+			if (this.wscycle & 1)*/ this.leaderboard_query();
 		};
 		this.ws.onclose = (e) => {
 			this.ws.closed = true;
@@ -63,9 +63,9 @@ Game.registerMod("ookieLeaderboard",{
 		};
 	},
 	leaderboard_updateme: function() {
+		if (this.updateTimer) this.updateTimer = clearTimeout(this.updateTimer);
 		if (!this.ws) {
-			if (this.updatemeInterval) clearInterval(this.updatemeInterval);
-			this.updatemeInterval = setInterval(()=>document.ookieLeaderboard.leaderboard_updateme(), this.updateS*1000); // dumb, I know
+			this.updateTimer = setTimeout(()=>document.ookieLeaderboard.leaderboard_updateme(), this.updateS*1000); // dumb, I know
 		}
 		if (this.cookie == "none") return;
 		fetch(this.baseURL+"/leaderboard/updateme", {
@@ -209,9 +209,9 @@ Game.registerMod("ookieLeaderboard",{
 		});
 	},
 	leaderboard_query: function() {
+		if (this.queryTimer) this.queryTimer = clearTimeout(this.queryTimer);
 		if (!this.ws) {
-			if (this.queryInterval) clearInterval(this.queryInterval);
-			this.queryInterval = setInterval(()=>document.ookieLeaderboard.leaderboard_query(), this.queryS*1000); // dumb, I know
+			this.queryTimer = setTimeout(()=>document.ookieLeaderboard.leaderboard_query(), this.queryS*1000); // dumb, I know
 		}
 		const MOD = this;
 		if (this.cookie == "none") return;
@@ -507,7 +507,7 @@ Game.registerMod("ookieLeaderboard",{
 		};
 
 		document.ookieLeaderboard = this;//bleh
-		this.updateS = this.dev ? 5 : 30;
+		this.updateS = this.dev ? 5 : 59;
 		this.queryS = this.dev ? 5 : 60;
 		if (this.dev && this.devURL) this.baseURL = "http://127.0.0.1:12345/er";
 		else this.baseURL = "https://c.ookie.click/er";
