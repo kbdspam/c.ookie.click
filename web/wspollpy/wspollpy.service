@@ -3,7 +3,7 @@ Description=Websocket dealer for c.ookie.click/er/leaderboard
 After=network.target
 
 [Service]
-User=admin
+User=boa
 Group=caddy
 WorkingDirectory=/web/wspollpy
 Environment="PATH=/web/wspollpy/venv/bin"

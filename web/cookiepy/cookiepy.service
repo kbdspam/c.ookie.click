@@ -3,7 +3,7 @@ Description=Gunicorn instance to serve c.ookie.click/er/leaderboard
 After=network.target
 
 [Service]
-User=admin
+User=boa
 Group=caddy
 WorkingDirectory=/web/cookiepy
 Environment="PATH=/web/cookiepy/venv/bin"

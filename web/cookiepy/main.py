@@ -198,6 +198,12 @@ def leaderboard_query():
         return "", 401
     cur = get_db().cursor()
     res = cur.execute("SELECT id, can_mod, name FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
+    """
+    if res == None:
+        cur.execute("INSERT INTO clickers(name, cookie) VALUES (?,?);", ("dev broke db; change name", cookie))
+        get_db().commit()
+        abort(403)
+    """
     if res == None: abort(403)
     cid = res[0]
     can_mod = res[1]
