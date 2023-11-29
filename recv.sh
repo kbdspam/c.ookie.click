@@ -5,4 +5,7 @@ rsync -trvzL --delete \
 	--exclude wspollpy/venv \
 	--exclude wspollpy/__pycache__ \
 	--exclude c.ookie.click/er/topeka \
-	admin@ec2:/web/* web/
+	boa@bakker:/web/* web/
+#	admin@ec2:/web/* web/
+
+#rsync -trvzL admin@ec2:/web/cookiepy/leaderboard.db web/leaderboard.db

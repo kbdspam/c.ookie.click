@@ -1,12 +1,10 @@
 http://ookie.click {
 	bind unix//tmp/ookie.click.sock
-	bind unix//tmp/caddy-main.sock
 	redir https://c.ookie.click/er/
 }
 
 http://c.ookie.click {
 	bind unix//tmp/ookie.click.sock
-	bind unix//tmp/caddy-main.sock
 	root * /web/c.ookie.click/
 	file_server
 	log {

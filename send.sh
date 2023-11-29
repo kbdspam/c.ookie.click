@@ -9,4 +9,6 @@ rsync -trvz --delete \
 	--exclude c.ookie.click/er/topeka \
 	--exclude cookiepy/leaderboard.db \
 	--exclude backup \
-	web/* admin@ec2:/web
+	web/* boa@bakker:/web
+	#web/* admin@ec2:/web
+#--exclude cookiepy/leaderboard.db \
