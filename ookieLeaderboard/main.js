@@ -13,7 +13,7 @@ Game.registerMod("ookieLeaderboard",{
 	},
 	load: function(str) {
 		this.initDatas(str);
-		setTimeout(()=>document.ookieLeaderboard.leaderboard_updateme(),2*1000);//bleh
+		this.leaderboard_updateme();
 		this.leaderboard_query();
 	},
 	initDatas: function(str) {
@@ -393,7 +393,7 @@ Game.registerMod("ookieLeaderboard",{
 	registerButton: function() {
 		if (this.cookie != "none") return;
 		PlaySound('snd/clickOn2.mp3');
-		Game.Prompt('<id LeaderboardRegisterAAAA><h3>Register on c.ookie.click/er/</h3><div class="block" style="text-align:center;">Enter a name you want to use on leaderboards. This can\'t be changed afterwards. Don\'t choose something racist, sexist, offensive, etc please.</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardRegisterPrompt" value=""/></div>', [
+		Game.Prompt('<id LeaderboardRegisterAAAA><h3>Register on c.ookie.click/er/</h3><div class="block" style="text-align:center;">Enter a name you want to use on leaderboards. Don\'t choose something racist, sexist, offensive, etc please.</div><div class="block"><input type="text" style="text-align:center;width:100%;" id="leaderboardRegisterPrompt" value=""/></div>', [
 			["register", `
 				const s = l('leaderboardRegisterPrompt').value.trim();
 				if (ookieLeaderboard.isOkayName(s)) {
