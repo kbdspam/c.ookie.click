@@ -1,7 +1,0 @@
-#!/bin/bash
-# crontab -e  with   */5 * * * *  /web/backupdb.sh
-set -euxo pipefail
-mkdir -p backup
-backupto="/web/backup/leaderboard_$(date +'%F_%T').db"
-sqlite3 leaderboard.db "VACUUM INTO '$backupto'"
-gzip "$backupto"
