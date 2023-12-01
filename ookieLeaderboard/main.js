@@ -13,7 +13,8 @@ Game.registerMod("ookieLeaderboard",{
 	},
 	load: function(str) {
 		this.initDatas(str);
-		this.leaderboard_updateme();
+		//this.leaderboard_updateme();
+		setTimeout(()=>document.ookieLeaderboard.leaderboard_updateme(),2*1000);//bleh
 		this.leaderboard_query();
 	},
 	initDatas: function(str) {
