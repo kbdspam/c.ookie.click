@@ -4,6 +4,7 @@ import secrets
 import datetime
 import math
 import os.path
+import re
 
 # TODO: rate-limiting
 
@@ -66,6 +67,20 @@ def leaderboard_changemyname():
     if not isOkayName(name):
         return "name too big or too small", 400
     cur = get_db().cursor()
+
+    # special handling so I don't have to continue okay_name=1 'ing a person
+    if re.fullmatch(r'i am #\d{3} on global', name) is not None:
+        r = cur.execute("""
+            UPDATE clickers SET
+            name=?,
+            okay_name=(CASE can_mod = 0 AND (okay_name=1 OR okay_name=-1 OR okay_name=0) WHEN 1 THEN 1 ELSE okay_name END)
+            WHERE cookie = ?""", (name,cookie))
+        get_db().commit()
+        if cur.rowcount > 0:
+            return "changed", 200
+        else:
+            return "no?", 400
+
     r = cur.execute("""
         UPDATE clickers SET
         name=?,
