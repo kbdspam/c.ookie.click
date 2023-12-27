@@ -216,6 +216,7 @@ Game.registerMod("ookieLeaderboard",{
 				}
 			}
 			this.cookie = cookie;
+			Game.toSave = true; // wow!
 			this.leaderboard_updateme();
 			setTimeout(()=>{this.leaderboard_query();}, 1*1000);
 			Game.Notify("Registered!",'',0,5);
