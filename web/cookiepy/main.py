@@ -73,7 +73,7 @@ def leaderboard_changemyname():
         r = cur.execute("""
             UPDATE clickers SET
             name=?,
-            okay_name=(CASE can_mod = 0 AND (okay_name=1 OR okay_name=-1 OR okay_name=0) WHEN 1 THEN 1 ELSE okay_name END)
+            okay_name=(CASE okay_name WHEN -2 THEN -2 ELSE 1 END)
             WHERE cookie = ?""", (name,cookie))
         get_db().commit()
         if cur.rowcount > 0:
@@ -84,7 +84,7 @@ def leaderboard_changemyname():
     r = cur.execute("""
         UPDATE clickers SET
         name=?,
-        okay_name=(CASE can_mod = 0 AND (okay_name=1 OR okay_name=-1) WHEN 1 THEN 0 ELSE okay_name END)
+        okay_name=(CASE okay_name WHEN -2 THEN -2 ELSE 0 END)
         WHERE cookie = ?""", (name,cookie))
     get_db().commit()
     if cur.rowcount > 0:
@@ -196,7 +196,7 @@ def leaderboard_updateme():
     cookies_per_second = float(data[1])
     cur = get_db().cursor()
     if badnum(total_cookies) or total_cookies < 0 or badnum(cookies_per_second) or cookies_per_second < 0:
-        cur.execute("UPDATE clickers SET okay_name=-2 WHERE cookie = ?", (cookie,))
+        cur.execute("UPDATE clickers SET cheater=1 WHERE cookie = ?", (cookie,))
         get_db().commit()
         raise Exception("nan or less than 0")
     cur.execute("UPDATE clickers SET total_cookies = ?, cookies_per_second = ? WHERE cookie = ?", (total_cookies, cookies_per_second, cookie))
@@ -229,7 +229,7 @@ def leaderboard_query():
             (CASE
                     {can_mod}>0
                 OR  j.board!=1
-                OR  c.okay_name=1
+                OR  c.okay_name>0
                 OR  c.id={cid}
                 WHEN 1
                 THEN c.name
@@ -238,13 +238,13 @@ def leaderboard_query():
             c.cookies_per_second,
             c.total_cookies,
             c.id,
-            (c.okay_name>0)
+            (c.okay_name>0 AND c.cheater=0)
         FROM joinedboards j
         JOIN clickers c ON c.id = j.clicker
         WHERE j.board IN (SELECT board FROM joinedboards WHERE clicker = {cid})
         ORDER BY
             j.board ASC,
-            (j.board=1 AND (c.okay_name>0 OR c.id={cid})) DESC,
+            (j.board=1 AND ((c.okay_name>0 AND c.cheater=0) OR c.id={cid})) DESC,
             c.cookies_per_second DESC,
             c.total_cookies DESC,
             c.id ASC
@@ -308,9 +308,9 @@ def make_db():
     db = sqlite3.connect("leaderboard.db")
     cur = db.cursor()
     cur.executescript("""
-        CREATE TABLE clickers (id INTEGER PRIMARY KEY, okay_name INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0, cookie TEXT NOT NULL, name TEXT NOT NULL);
+        CREATE TABLE clickers (id INTEGER PRIMARY KEY, okay_name INT NOT NULL DEFAULT 0, cheater INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0, cookie TEXT NOT NULL, name TEXT NOT NULL);
         CREATE TABLE boards (id INTEGER PRIMARY KEY, owner INT NOT NULL, only_owner_cookie INT NOT NULL, cookie TEXT NOT NULL, name TEXT NOT NULL);
-        CREATE TABLE joinedboards (clicker INT NOT NULL, board INT NOT NULL);
+        CREATE TABLE joinedboards (clicker INT NOT NULL, board INT NOT NULL, UNIQUE(clicker, board) ON CONFLICT IGNORE);
 
         CREATE INDEX cookie_clickers ON clickers(cookie);
         CREATE INDEX boards_cookie ON boards(cookie);
@@ -343,6 +343,29 @@ def migrate_db_000():
     db.execute("VACUUM;")
     db.commit()
 
+def migrate_db_001():
+    db = sqlite3.connect("leaderboard.db")
+    cur = db.cursor()
+    cur.executescript("""
+        DROP INDEX cookie_clickers;
+
+        CREATE TABLE temp_clickers (id INTEGER PRIMARY KEY, okay_name INT NOT NULL DEFAULT 0, cheater INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0, cookie TEXT NOT NULL, name TEXT NOT NULL);
+        INSERT INTO temp_clickers (id,okay_name,can_mod,total_cookies,cookies_per_second,cookie,name) SELECT * FROM clickers;
+        UPDATE temp_clickers SET cheater=1, okay_name=0 WHERE okay_name=-2;
+        DROP TABLE clickers;
+        ALTER TABLE temp_clickers RENAME TO clickers;
+        CREATE INDEX cookie_clickers ON clickers(cookie);
+
+        DROP INDEX cookie_joinedboards;
+        CREATE TABLE temp_joinedboards (clicker INT NOT NULL, board INT NOT NULL, UNIQUE(clicker, board) ON CONFLICT IGNORE);
+        INSERT INTO temp_joinedboards (clicker, board) SELECT * FROM joinedboards;
+        DROP TABLE joinedboards;
+        ALTER TABLE temp_joinedboards RENAME TO joinedboards;
+    """)
+    db.commit()
+    db.execute("VACUUM;")
+    db.commit()
+
 def insert_lots_of_fake_people(targetboard):
     import random
     db = sqlite3.connect("leaderboard.db")
@@ -369,5 +392,6 @@ home:  # edit send.sh to remove sending database
 if __name__ == '__main__':
     #make_db()
     #migrate_db_000()
+    #migrate_db_001()
     #insert_lots_of_fake_people(7)
     app.run(host='127.0.0.1', port=12345)
