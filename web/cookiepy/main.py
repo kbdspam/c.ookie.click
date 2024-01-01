@@ -229,7 +229,7 @@ def leaderboard_query():
             (CASE
                     {can_mod}>0
                 OR  j.board!=1
-                OR  c.okay_name>0
+                OR  (c.okay_name>0 AND c.cheater=0)
                 OR  c.id={cid}
                 WHEN 1
                 THEN c.name
