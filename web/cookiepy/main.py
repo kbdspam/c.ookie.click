@@ -228,7 +228,7 @@ def leaderboard_query():
             j.board,
             (CASE
                     {can_mod}>0
-                OR  j.board!=1
+                OR  (j.board!=1 AND c.okay_name>-2)
                 OR  (c.okay_name>0 AND c.cheater=0)
                 OR  c.id={cid}
                 WHEN 1
