@@ -7,3 +7,5 @@ topeka
 thumbnail.png
 preview.png
 longpoll
+logs
+*.env

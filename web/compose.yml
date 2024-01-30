@@ -1,0 +1,42 @@
+version: '3.7'
+
+services:
+  tunnel:
+    image: cloudflare/cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./c.ookie.click:/site/c.ookie.click:ro
+      - ${LOGS_DIR}:/var/log/caddy
+  wspollpy:
+    build: wspollpy
+    restart: unless-stopped
+    stop_grace_period: 2s
+  cookiepy:
+    build: cookiepy
+    restart: unless-stopped
+    stop_grace_period: 5s
+    volumes:
+      - ${DB_DIR}:/data
+  topekash:
+    build: topekash
+    restart: unless-stopped
+    stop_grace_period: 2s
+    volumes:
+      - type: bind
+        source: ./c.ookie.click/er/topeka
+        target: /app/topeka
+  backupdb:
+    build: backupdb
+    restart: unless-stopped
+    stop_grace_period: 5s
+    volumes:
+      - ${DB_DIR}:/data

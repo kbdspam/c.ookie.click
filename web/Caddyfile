@@ -1,11 +1,9 @@
 http://ookie.click {
-	bind unix//tmp/ookie.click.sock
 	redir https://c.ookie.click/er/
 }
 
 http://c.ookie.click {
-	bind unix//tmp/ookie.click.sock
-	root * /web/c.ookie.click/
+	root * /site/c.ookie.click/
 	file_server
 	log {
 		output file /var/log/caddy/c.ookie.click.log {
@@ -17,9 +15,7 @@ http://c.ookie.click {
 	}
 
 	redir / /er/
-	#redir /er/cf https://dash.cloudflare.com/x/ookie.click
 
-	#reverse_proxy /er/longpoll localhost:4343
-	reverse_proxy /er/leaderboard/wstimer localhost:4300
-	reverse_proxy /er/leaderboard/* unix//tmp/cookiepy.sock # todo?
+	reverse_proxy /er/leaderboard/wstimer wspollpy:4300
+	reverse_proxy /er/leaderboard/* cookiepy:12345
 }

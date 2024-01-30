@@ -13,7 +13,7 @@ app = Flask(__name__)
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect("leaderboard.db")
+        db = g._database = sqlite3.connect("/data/leaderboard.db")
     return db
 
 def badnum(num):
@@ -31,9 +31,9 @@ def randcookie():
     return ''.join(secrets.choice("0123456789abcdefABCDEF") for _ in range(32))
 
 def disabled_registering():
-    return os.path.isfile("disabled_registering")
+    return os.path.isfile("/data/disabled_registering")
 def disabled_leaderboard_create():
-    return os.path.isfile("disabled_leaderboard_create")
+    return os.path.isfile("/data/disabled_leaderboard_create")
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -305,7 +305,7 @@ def leaderboard_join():
         return "???", 500
 
 def make_db():
-    db = sqlite3.connect("leaderboard.db")
+    db = sqlite3.connect("/data/leaderboard.db")
     cur = db.cursor()
     cur.executescript("""
         CREATE TABLE clickers (id INTEGER PRIMARY KEY, okay_name INT NOT NULL DEFAULT 0, cheater INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0, cookie TEXT NOT NULL, name TEXT NOT NULL);
@@ -319,7 +319,7 @@ def make_db():
     db.commit()
 
 def migrate_db_000():
-    db = sqlite3.connect("leaderboard.db")
+    db = sqlite3.connect("/data/leaderboard.db")
     cur = db.cursor()
     cur.executescript("""
         DROP INDEX cookie_clickers;
@@ -344,7 +344,7 @@ def migrate_db_000():
     db.commit()
 
 def migrate_db_001():
-    db = sqlite3.connect("leaderboard.db")
+    db = sqlite3.connect("/data/leaderboard.db")
     cur = db.cursor()
     cur.executescript("""
         DROP INDEX cookie_clickers;
@@ -368,7 +368,7 @@ def migrate_db_001():
 
 def insert_lots_of_fake_people(targetboard):
     import random
-    db = sqlite3.connect("leaderboard.db")
+    db = sqlite3.connect("/data/leaderboard.db")
     cur = db.cursor()
     for i in range(100):
         cur.execute("INSERT INTO clickers(name, cookie, total_cookies, cookies_per_second) VALUES (?,?,?,?);", ("faketest"+str(i), randcookie(), random.uniform(1, 10)*1000000,random.uniform(1, 10)*1000000))
@@ -394,4 +394,4 @@ if __name__ == '__main__':
     #migrate_db_000()
     #migrate_db_001()
     #insert_lots_of_fake_people(7)
-    app.run(host='127.0.0.1', port=12345)
+    app.run(host='0.0.0.0', port=12345)

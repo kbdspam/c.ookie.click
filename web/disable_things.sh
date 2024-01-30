@@ -1,3 +1,3 @@
 #!/bin/bash
 set -exuo pipefail
-touch   cookiepy/disabled_registering   cookiepy/disabled_leaderboard_create
+touch   data/disabled_registering   data/disabled_leaderboard_create
