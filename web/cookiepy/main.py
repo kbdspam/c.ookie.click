@@ -198,7 +198,8 @@ def leaderboard_updateme():
     if badnum(total_cookies) or total_cookies < 0 or badnum(cookies_per_second) or cookies_per_second < 0:
         cur.execute("UPDATE clickers SET cheater=1 WHERE cookie = ?", (cookie,))
         get_db().commit()
-        raise Exception("nan or less than 0")
+        return "", 500
+        #raise Exception("nan or less than 0")
     cur.execute("UPDATE clickers SET total_cookies = ?, cookies_per_second = ? WHERE cookie = ?", (total_cookies, cookies_per_second, cookie))
     get_db().commit()
     if cur.rowcount > 0:
