@@ -10,8 +10,6 @@ services:
   caddy:
     image: caddy:2
     restart: unless-stopped
-    cap_add:
-      - NET_ADMIN
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - ./c.ookie.click:/site/c.ookie.click:ro
