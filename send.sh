@@ -6,6 +6,7 @@ rsync -trvz --delete \
 	--exclude data/leaderboard.db \
 	--exclude data/backup \
 	--exclude logs \
-	web/* boa@bakker:/web2
+	web/* fly@merry-sex:/home/fly/cookie
+	#web/* boa@bakker:/web2
 	#web/* admin@ec2:/web
 #--exclude cookiepy/leaderboard.db \
