@@ -520,11 +520,19 @@ Game.registerMod("ookieLeaderboard",{
 
 	init: function() {
 		// If we don't have mod data yet (first run) then the load() function won't run.
-		// Hook the load function to simplify ourself.
-		Game.original_loadModData = Game.loadModData;
-		Game.loadModData = () => {
-			Game.loadModData = Game.original_loadModData;
-			Game.original_loadModData();
+		// Hook some function to simplify ourself.
+		if (!("loadModData_original" in Game)) {
+			Game.loadModData_post_functions = {};
+			Game.loadModData_original = Game.loadModData;
+			Game.loadModData = function() {
+				Game.loadModData_original();
+				for (let key in Game.loadModData_post_functions) {
+					Game.loadModData_post_functions[key]();
+				}
+			};
+		}
+		Game.loadModData_post_functions["ookieLeaderboard"] = () => {
+			delete Game.loadModData_post_functions["ookieLeaderboard"];
 			if (this && !this.settings) this.load();
 		};
 		// Deleting mod data doesn't work if the plugin is still loaded/enabled.
