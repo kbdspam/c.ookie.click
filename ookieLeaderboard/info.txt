@@ -1,9 +1,9 @@
 {
- "Name": "Cookie Clicker Leaderboard",
+ "Name": "Cookie Clicker Leaderboard (+Cursor Party)",
  "ID": "ookieLeaderboard",
  "Author": "isekai hero of bhop",
  "Description": "Make leaderboards with your friends and prove who's the ultimate clicker of cookies!",
- "ModVersion": 20,
+ "ModVersion": 21,
  "AllowSteamAchievs": 1,
  "GameVersion": 2.052,
  "Date": "2024-06-18",
