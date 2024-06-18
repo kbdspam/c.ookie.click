@@ -790,6 +790,7 @@ Game.registerMod("cursorParty", {
 	},
 	stopTheCursors: function() {
 		if ("cursorPartyWs" in document) {
+			document.cursorPartyMurder(); // clears cursors...
 			document.cursorPartyWs.close();
 		}
 		l("cursorPartyButton").innerHTML = "Cursor Party<br>OFF";
