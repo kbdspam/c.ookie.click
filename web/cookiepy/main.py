@@ -84,6 +84,7 @@ def leaderboard_changemyname():
     r = cur.execute("""
         UPDATE clickers SET
         name=?,
+        last_updated=unixepoch(),
         okay_name=(CASE okay_name WHEN -2 THEN -2 ELSE 0 END)
         WHERE cookie = ?""", (name,cookie))
     get_db().commit()
@@ -169,6 +170,8 @@ def leaderboard_kick():
         if can_mod >= 2:
             cur.execute("DELETE FROM joinedboards WHERE clicker = ? AND board = ?", (enemy,boardid))
             if cur.rowcount > 0:
+                # TODO: Maybe force the board to require a full query?
+                cur.execute("UPDATE clickers SET last_updated=unixepoch() WHERE id=?",(enemy,))
                 get_db().commit()
                 return "kicked", 200
             else:
@@ -196,11 +199,11 @@ def leaderboard_updateme():
     cookies_per_second = float(data[1])
     cur = get_db().cursor()
     if badnum(total_cookies) or total_cookies < 0 or badnum(cookies_per_second) or cookies_per_second < 0:
-        cur.execute("UPDATE clickers SET cheater=1 WHERE cookie = ?", (cookie,))
+        cur.execute("UPDATE clickers SET cheater=1, last_updated=unixepoch() WHERE cookie = ?", (cookie,))
         get_db().commit()
         return "", 500
         #raise Exception("nan or less than 0")
-    cur.execute("UPDATE clickers SET total_cookies = ?, cookies_per_second = ? WHERE cookie = ?", (total_cookies, cookies_per_second, cookie))
+    cur.execute("UPDATE clickers SET last_updated=unixepoch(), total_cookies = ?, cookies_per_second = ? WHERE cookie = ?", (total_cookies, cookies_per_second, cookie))
     get_db().commit()
     if cur.rowcount > 0:
         return "updated", 200
@@ -212,6 +215,10 @@ def leaderboard_query():
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "", 401
+    try:
+        timestamp = int(request.headers.get('X-My-Timestamp', '0'))
+    except:
+        timestamp = 0
     cur = get_db().cursor()
     res = cur.execute("SELECT id, can_mod, name FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
     """
@@ -250,8 +257,9 @@ def leaderboard_query():
             c.total_cookies DESC,
             c.id ASC
     """).fetchall()
+    #AND ({timestamp} = 0 OR c.last_updated>={timestamp})
     boards = cur.execute("SELECT b.id, b.name, (CASE b.owner=? WHEN 1 THEN b.cookie ELSE '' END) FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ? ORDER BY j.board ASC", (cid,cid,)).fetchall()
-    resp = jsonify(boardinfo=boards,boardvalues=res,you=cid,can_mod=can_mod,unsafe_my_name=unsafe_my_name)
+    resp = jsonify(boardinfo=boards,boardvalues=res,you=cid,can_mod=can_mod,unsafe_my_name=unsafe_my_name,timestamp=timestamp)
     resp.headers["Cache-Control"] = "no-store"
     return resp
 
@@ -276,7 +284,7 @@ def leaderboard_leave():
         cur.execute("DELETE FROM joinedboards WHERE board = ? AND clicker = ?", (boardid, clickerid))
         # IDK if this below even works:
         #cur.execute("""
-        #    DELETE FROM joinedboards 
+        #    DELETE FROM joinedboards
         #    LEFT JOIN clickers c ON c.cookie = ?
         #    WHERE board = ? AND clicker = c.id
         #""", (cookie, boardid))
@@ -309,7 +317,7 @@ def make_db():
     db = sqlite3.connect("/data/leaderboard.db")
     cur = db.cursor()
     cur.executescript("""
-        CREATE TABLE clickers (id INTEGER PRIMARY KEY, okay_name INT NOT NULL DEFAULT 0, cheater INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0, cookie TEXT NOT NULL, name TEXT NOT NULL);
+        CREATE TABLE clickers (id INTEGER PRIMARY KEY, okay_name INT NOT NULL DEFAULT 0, cheater INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, last_updated INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0, cookie TEXT NOT NULL, name TEXT NOT NULL);
         CREATE TABLE boards (id INTEGER PRIMARY KEY, owner INT NOT NULL, only_owner_cookie INT NOT NULL, cookie TEXT NOT NULL, name TEXT NOT NULL);
         CREATE TABLE joinedboards (clicker INT NOT NULL, board INT NOT NULL, UNIQUE(clicker, board) ON CONFLICT IGNORE);
 
@@ -367,6 +375,22 @@ def migrate_db_001():
     db.execute("VACUUM;")
     db.commit()
 
+def migrate_db_002():
+    db = sqlite3.connect("/data/leaderboard.db")
+    cur = db.cursor()
+    cur.executescript("""
+        DROP INDEX cookie_clickers;
+
+        CREATE TABLE temp_clickers (id INTEGER PRIMARY KEY, okay_name INT NOT NULL DEFAULT 0, cheater INT NOT NULL DEFAULT 0, can_mod INT NOT NULL DEFAULT 0, last_updated INT NOT NULL DEFAULT 0, total_cookies REAL NOT NULL DEFAULT 0, cookies_per_second REAL NOT NULL DEFAULT 0, cookie TEXT NOT NULL, name TEXT NOT NULL);
+        INSERT INTO temp_clickers (id,okay_name,cheater,can_mod,total_cookies,cookies_per_second,cookie,name) SELECT id,okay_name,cheater,can_mod,total_cookies,cookies_per_second,cookie,name FROM clickers;
+        DROP TABLE clickers;
+        ALTER TABLE temp_clickers RENAME TO clickers;
+        CREATE INDEX cookie_clickers ON clickers(cookie);
+    """)
+    db.commit()
+    db.execute("VACUUM;")
+    db.commit()
+
 def insert_lots_of_fake_people(targetboard):
     import random
     db = sqlite3.connect("/data/leaderboard.db")
@@ -394,5 +418,6 @@ if __name__ == '__main__':
     #make_db()
     #migrate_db_000()
     #migrate_db_001()
+    #migrate_db_002()
     #insert_lots_of_fake_people(7)
     app.run(host='0.0.0.0', port=12345)

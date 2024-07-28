@@ -235,13 +235,20 @@ Game.registerMod("ookieLeaderboard",{
 		fetch(this.baseURL+"/leaderboard/query", {
 			headers: {
 				"X-My-Cookie": this.cookie,
+				"X-My-Timestamp": this.queriedOnce ? this.lastTimestamp : '0',
 			},
 		}).then(response => {
 			if (response.status == 429) this.leaderboard_ws(0);
 			if (!response.ok) throw Error(response.statusText);
 			return response.json();
 		}).then(json => {
+			if (this.queriedOnce) {
+				//
+			} else {
+				//
+			}
 			this.queriedOnce = true;
+			this.lastTimestamp = +json.timestamp;
 			this.you = json.you;
 			this.can_mod = +json.can_mod;
 			this.unsafe_my_name = json.unsafe_my_name;
