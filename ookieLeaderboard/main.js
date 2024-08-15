@@ -12,6 +12,7 @@ Game.registerMod("ookieLeaderboard",{
 		return JSON.stringify(this.settings);
 	},
 	load: function(str) {
+		if (!this.goodInit) return;
 		this.initDatas(str);
 		//this.leaderboard_updateme();
 		setTimeout(()=>document.ookieLeaderboard.leaderboard_updateme(),2*1000);//bleh
@@ -526,6 +527,9 @@ Game.registerMod("ookieLeaderboard",{
 
 
 	init: function() {
+		if (!(this.goodInit = (App.mods['ookieLeaderboard'].workshop == "3061304069")))
+			return;
+
 		// If we don't have mod data yet (first run) then the load() function won't run.
 		// Hook some function to simplify ourself.
 		if (!("loadModData_original" in Game)) {
@@ -711,6 +715,9 @@ Game.registerMod("ookieLeaderboard",{
 
 Game.registerMod("cursorParty", {
 	init: function() {
+		if (!(this.goodInit = ["3268177089", "3061304069"].includes(App.mods['cursorParty'].workshop)))
+			return;
+
 		// If we don't have mod data yet (first run) then the load() function won't run.
 		// Hook some function to simplify ourself.
 		if (!("loadModData_original" in Game)) {
@@ -812,6 +819,7 @@ Game.registerMod("cursorParty", {
 		return this.active ? "on" : "off";
 	},
 	load:function(str) {
+		if (!this.goodInit) return;
 		this.load_called = true;
 		if (this.active) return;
 		if (str != "off") this.startTheCursors();
