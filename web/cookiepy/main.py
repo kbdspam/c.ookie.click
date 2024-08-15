@@ -5,6 +5,7 @@ import datetime
 import math
 import os.path
 import re
+import time
 
 # TODO: rate-limiting
 
@@ -35,6 +36,12 @@ def disabled_registering():
 def disabled_leaderboard_create():
     return os.path.isfile("/data/disabled_leaderboard_create")
 
+def bad_workshop_id():
+    if time.time() > 1724017056: # Sun Aug 18 2024 21:37:36 GMT+0000
+        return request.headers.get('X-My-Workshop-ID', '') != "3061304069"
+    else:
+        return False
+
 @app.teardown_appcontext
 def close_connection(exception):
     db = getattr(g, '_database', None)
@@ -43,6 +50,8 @@ def close_connection(exception):
 
 @app.route('/er/leaderboard/register', methods=['POST'])
 def leaderboard_register():
+    if bad_workshop_id():
+        return "db broken", 500 # shhh
     if disabled_registering():
         return "db broken", 500 # shhh
     #name = request.form.get("name", "") # TODO
@@ -58,6 +67,8 @@ def leaderboard_register():
 
 @app.route('/er/leaderboard/changemyname', methods=['POST'])
 def leaderboard_changemyname():
+    if bad_workshop_id():
+        return "db broken", 500 # shhh
     if disabled_registering():
         return "db broken", 500 # shhh
     cookie = request.headers.get('X-My-Cookie', '')
@@ -95,6 +106,8 @@ def leaderboard_changemyname():
 
 @app.route('/er/leaderboard/create', methods=['POST'])
 def leaderboard_create():
+    if bad_workshop_id():
+        return "db broken", 500 # shhh
     if disabled_leaderboard_create():
         return "db broken", 500 # shhh
     cookie = request.headers.get('X-My-Cookie', '')
@@ -117,6 +130,8 @@ def leaderboard_create():
 
 @app.route('/er/leaderboard/cycleboardcookie', methods=['POST'])
 def leaderboard_cycleboardcookie():
+    if bad_workshop_id():
+        return "db broken", 500 # shhh
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "a", 401
@@ -134,6 +149,8 @@ def leaderboard_cycleboardcookie():
 
 @app.route('/er/leaderboard/changeboardname', methods=['POST'])
 def leaderboard_changeboardname():
+    if bad_workshop_id():
+        return "db broken", 500 # shhh
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "a", 401
@@ -154,6 +171,8 @@ def leaderboard_changeboardname():
 
 @app.route('/er/leaderboard/kick', methods=['POST'])
 def leaderboard_kick():
+    if bad_workshop_id():
+        return "db broken", 500 # shhh
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "a", 401
@@ -191,6 +210,8 @@ def leaderboard_kick():
 
 @app.route('/er/leaderboard/updateme', methods=['POST'])
 def leaderboard_updateme():
+    if bad_workshop_id():
+        return "db broken", 500 # shhh
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "a", 401
@@ -212,6 +233,8 @@ def leaderboard_updateme():
 
 @app.route('/er/leaderboard/query')
 def leaderboard_query():
+    if bad_workshop_id():
+        return "db broken", 500 # shhh
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "", 401
@@ -265,6 +288,8 @@ def leaderboard_query():
 
 @app.route('/er/leaderboard/leave', methods=['POST'])
 def leaderboard_leave():
+    if bad_workshop_id():
+        return "db broken", 500 # shhh
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "a", 401
@@ -293,6 +318,8 @@ def leaderboard_leave():
 
 @app.route('/er/leaderboard/join', methods=['POST'])
 def leaderboard_join():
+    if bad_workshop_id():
+        return "db broken", 500 # shhh
     cookie = request.headers.get('X-My-Cookie', '')
     if len(cookie) != 32:
         return "a", 401
