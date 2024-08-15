@@ -75,6 +75,7 @@ Game.registerMod("ookieLeaderboard",{
 			headers: {
 				"X-My-Cookie": this.cookie,
 				"X-My-Update-Data": Game.cookiesEarned+'|'+Game.cookiesPsRaw,
+				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
 			if (response.status == 429) this.leaderboard_ws(0);
@@ -87,6 +88,7 @@ Game.registerMod("ookieLeaderboard",{
 			headers: {
 				"X-My-Cookie": this.cookie,
 				"X-My-Leaderboard-ID": id.toString(),
+				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
 			if (!response.ok) throw Error(response.statusText);
@@ -102,6 +104,7 @@ Game.registerMod("ookieLeaderboard",{
 			headers: {
 				"X-My-Cookie": this.cookie,
 				"X-My-Leaderboard-Cookie": cookie,
+				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
 			if (!response.ok) throw Error(response.statusText);
@@ -117,6 +120,7 @@ Game.registerMod("ookieLeaderboard",{
 			headers: {
 				"X-My-Cookie": this.cookie,
 				"X-My-New-Leaderboard-Name": name,
+				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
 			this.waitingForRegister = false;
@@ -136,6 +140,7 @@ Game.registerMod("ookieLeaderboard",{
 				"X-My-Cookie": this.cookie,
 				"X-My-Leaderboard-ID": board.toString(),
 				"X-My-New-Leaderboard-Name": name,
+				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
 			if (!response.ok) throw Error(response.statusText);
@@ -151,6 +156,7 @@ Game.registerMod("ookieLeaderboard",{
 			headers: {
 				"X-My-Cookie": this.cookie,
 				"X-My-New-Leaderboard-Name": name,
+				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
 			if (!response.ok) throw Error(response.statusText);
@@ -168,6 +174,7 @@ Game.registerMod("ookieLeaderboard",{
 				"X-My-Cookie": this.cookie,
 				"X-My-Leaderboard-ID": board.toString(),
 				"X-My-Enemy-ID": id.toString(),
+				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
 			if (!response.ok) throw Error(response.statusText);
@@ -185,6 +192,7 @@ Game.registerMod("ookieLeaderboard",{
 			headers: {
 				"X-My-Cookie": this.cookie,
 				"X-My-Leaderboard-ID": id.toString(),
+				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
 			if (!response.ok) throw Error(response.statusText);
@@ -202,6 +210,7 @@ Game.registerMod("ookieLeaderboard",{
 			method: "POST",
 			headers: {
 				"X-My-New-Leaderboard-Name": name,
+				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
 			this.waitingForRegister = false;
@@ -237,6 +246,7 @@ Game.registerMod("ookieLeaderboard",{
 			headers: {
 				"X-My-Cookie": this.cookie,
 				"X-My-Timestamp": this.queriedOnce ? this.lastTimestamp : '0',
+				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
 			if (response.status == 429) this.leaderboard_ws(0);
