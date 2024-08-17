@@ -776,7 +776,7 @@ Game.registerMod("cursorParty", {
 		});
 	},
 	injectScript: function(subdomain) {
-		document.cursorPartyCC = "cc";
+		document.cursorPartyCC = "cc2";
 		let script = document.createElement("script");
 		//script.src = "http://localhost:1999/cursors.js";
 		script.src = `https://cursor-party-${subdomain}.c.ookie.click/cursors2.js`;
