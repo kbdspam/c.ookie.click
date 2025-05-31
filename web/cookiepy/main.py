@@ -47,17 +47,6 @@ def close_connection(exception) -> None:
     if db is not None:
         db.close()
 
-def update_board_last_updated(cur: sqlite3.Cursor, cid_or_cookie: int | str) -> None:
-    if type(cid_or_cookie) is str:
-        res = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cid_or_cookie,)).fetchone()
-        # TODO: :thinking:
-        if res is None:
-            abort(403)
-        cid = res[0]
-    else:
-        cid = cid_or_cookie
-    pass
-
 @app.route('/er/leaderboard/register', methods=['POST'])
 def leaderboard_register() -> tuple[str, int]:
     if bad_workshop_id():
@@ -88,7 +77,6 @@ def leaderboard_changemyname() -> tuple[str, int]:
     if not isOkayName(name):
         return "name too big or too small", 400
     cur = get_db().cursor()
-    update_board_last_updated(cur, cookie)
     # special handling so I don't have to continue okay_name=1 'ing a person
     if re.fullmatch(r'i am #\d{3} on global', name) is not None:
         _ = cur.execute("""
@@ -226,7 +214,6 @@ def leaderboard_updateme() -> tuple[str, int]:
     total_cookies = float(data[0])
     cookies_per_second = float(data[1])
     cur = get_db().cursor()
-    update_board_last_updated(cur, cookie)
     if badnum(total_cookies) or total_cookies < 0 or badnum(cookies_per_second) or cookies_per_second < 0:
         cur.execute("UPDATE clickers SET cheater=1, last_updated=unixepoch() WHERE cookie = ?", (cookie,))
         get_db().commit()
