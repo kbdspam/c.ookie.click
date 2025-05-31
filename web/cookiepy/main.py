@@ -7,7 +7,9 @@ import re
 import time
 
 # TODO: rate-limiting
-# TODO: setup https://docs.astral.sh/ruff/ to require type-hints...
+
+# https://docs.astral.sh/ruff/
+# uvx ruff check
 
 app = Flask(__name__)
 
@@ -46,9 +48,11 @@ def close_connection(exception) -> None:
         db.close()
 
 def update_board_last_updated(cur: sqlite3.Cursor, cid_or_cookie: int | str) -> None:
-    if type(cid_or_cookie) == str:
+    if type(cid_or_cookie) is str:
         res = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cid_or_cookie,)).fetchone()
-        if res == None: abort(403) # :thinking: TODO
+        # TODO: :thinking:
+        if res is None:
+            abort(403)
         cid = res[0]
     else:
         cid = cid_or_cookie
@@ -87,13 +91,13 @@ def leaderboard_changemyname() -> tuple[str, int]:
     update_board_last_updated(cur, cookie)
     # special handling so I don't have to continue okay_name=1 'ing a person
     if re.fullmatch(r'i am #\d{3} on global', name) is not None:
-        r = cur.execute("""
+        _ = cur.execute("""
             UPDATE clickers SET
             name=?,
             okay_name=(CASE okay_name WHEN -2 THEN -2 ELSE 1 END)
             WHERE cookie = ?""", (name,cookie))
     else:
-        r = cur.execute("""
+        _ = cur.execute("""
             UPDATE clickers SET
             name=?,
             last_updated=unixepoch(),
@@ -121,7 +125,8 @@ def leaderboard_create() -> tuple[str, int]:
     boardcookie = randcookie()
     cur = get_db().cursor()
     cid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
-    if cid == None: abort(403)
+    if cid is None:
+        abort(403)
     cid = cid[0]
     if 5 <= cur.execute("SELECT COUNT(*) FROM joinedboards WHERE clicker = ?", (cid,)).fetchone()[0]:
         return "in too many boards", 400
@@ -140,9 +145,10 @@ def leaderboard_cycleboardcookie() -> tuple[str, int]:
     boardid = int(request.headers.get('X-My-Leaderboard-ID', ''))
     cur = get_db().cursor()
     clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
-    if clickerid == None: abort(403)
+    if clickerid is None:
+        abort(403)
     clickerid = clickerid[0]
-    r = cur.execute("UPDATE boards SET cookie = ?, last_updated=unixepoch() WHERE owner = ? AND id = ?", (randcookie(),clickerid,boardid))
+    _ = cur.execute("UPDATE boards SET cookie = ?, last_updated=unixepoch() WHERE owner = ? AND id = ?", (randcookie(),clickerid,boardid))
     get_db().commit()
     if cur.rowcount > 0:
         return "cycled", 200
@@ -162,9 +168,10 @@ def leaderboard_changeboardname() -> tuple[str, int]:
         return "name too big or too small", 400
     cur = get_db().cursor()
     clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
-    if clickerid == None: abort(403)
+    if clickerid is None:
+        abort(403)
     clickerid = clickerid[0]
-    r = cur.execute("UPDATE boards SET name = ?, last_updated=unixepoch() WHERE owner = ? AND id = ?", (name,clickerid,boardid))
+    _ = cur.execute("UPDATE boards SET name = ?, last_updated=unixepoch() WHERE owner = ? AND id = ?", (name,clickerid,boardid))
     get_db().commit()
     if cur.rowcount > 0:
         return "changed", 200
@@ -182,7 +189,8 @@ def leaderboard_kick() -> tuple[str, int]:
     boardid = int(request.headers.get('X-My-Leaderboard-ID', ''))
     cur = get_db().cursor()
     res = cur.execute("SELECT id, can_mod FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
-    if res == None: abort(403)
+    if res is None:
+        abort(403)
     clickerid = res[0]
     can_mod = res[1]
     if enemy == clickerid:
@@ -240,21 +248,24 @@ def leaderboard_query() -> Response | tuple[str, int]:
         return "", 401
     try:
         timestamp = int(request.headers.get('X-My-Timestamp2', '0'))
-    except:
+    except ValueError:
         timestamp = 0
     now = int(time.time())
     max_time_period = now - (60 * 3)
-    if timestamp < 0 or timestamp > now: timestamp = 0
-    if timestamp > 0 and timestamp < max_time_period: timestamp = max_time_period
+    if timestamp < 0 or timestamp > now:
+        timestamp = 0
+    if timestamp > 0 and timestamp < max_time_period:
+        timestamp = max_time_period
     cur = get_db().cursor()
     res = cur.execute("SELECT id, can_mod, name FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
     """
-    if res == None:
+    if res is None:
         cur.execute("INSERT INTO clickers(name, cookie) VALUES (?,?);", ("dev broke db; change name", cookie))
         get_db().commit()
         abort(403)
     """
-    if res == None: abort(403)
+    if res is None:
+        abort(403)
     cid = res[0]
     can_mod = res[1]
     unsafe_my_name = res[2]
@@ -302,10 +313,12 @@ def leaderboard_leave() -> tuple[str, int]:
     cur = get_db().cursor()
     # lol... atomicity and transactions? never heard of them...
     clickerid = cur.execute("SELECT id FROM clickers WHERE cookie = ?", (cookie,)).fetchone()
-    if clickerid == None: abort(403)
+    if clickerid is None:
+        abort(403)
     clickerid = clickerid[0]
     ownerid = cur.execute("SELECT owner FROM boards WHERE id = ?", (boardid,)).fetchone()
-    if ownerid == None: abort(403)
+    if ownerid is None:
+        abort(403)
     ownerid = ownerid[0]
     if clickerid == ownerid:
         cur.execute("""
