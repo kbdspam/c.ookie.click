@@ -64,7 +64,10 @@ Game.registerMod("ookieLeaderboard",{
 		};
 	},
 	leaderboard_updateme: function() {
-		if (this.updateTimer) this.updateTimer = clearTimeout(this.updateTimer);
+		if (this.updateTimer) {
+			clearTimeout(this.updateTimer);
+			this.updateTimer = null;
+		}
 		if (!this.ws) {
 			this.updateTimer = setTimeout(()=>document.ookieLeaderboard.leaderboard_updateme(), this.updateS*1000); // dumb, I know
 		}
@@ -235,7 +238,10 @@ Game.registerMod("ookieLeaderboard",{
 		});
 	},
 	leaderboard_query: function() {
-		if (this.queryTimer) this.queryTimer = clearTimeout(this.queryTimer);
+		if (this.queryTimer) {
+			clearTimeout(this.queryTimer);
+			this.queryTimer = null;
+		}
 		if (!this.ws) {
 			this.queryTimer = setTimeout(()=>document.ookieLeaderboard.leaderboard_query(), this.queryS*1000); // dumb, I know
 		}
@@ -244,7 +250,7 @@ Game.registerMod("ookieLeaderboard",{
 		fetch(this.baseURL+"/leaderboard/query", {
 			headers: {
 				"X-My-Cookie": this.cookie,
-				"X-My-Timestamp": this.queriedOnce ? this.lastTimestamp : '0',
+				//"X-My-Timestamp2": this.queriedOnce ? this.lastTimestamp : '0',
 				"X-My-Workshop-ID": App.mods['ookieLeaderboard'].workshop,
 			},
 		}).then(response => {
