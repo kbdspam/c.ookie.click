@@ -285,7 +285,7 @@ def leaderboard_query() -> Response | tuple[str, int]:
             c.id ASC
     """).fetchall()
     boards = cur.execute("SELECT b.id, b.name, (CASE b.owner=? WHEN 1 THEN b.cookie ELSE '' END) FROM joinedboards j JOIN boards b ON j.board = b.id WHERE j.clicker = ? ORDER BY j.board ASC", (cid,cid,)).fetchall()
-    resp = jsonify(boardinfo=boards,boardvalues=res,you=cid,can_mod=can_mod,unsafe_my_name=unsafe_my_name,timestamp=timestamp)
+    resp = jsonify(boardinfo=boards,boardvalues=res,you=cid,can_mod=can_mod,unsafe_my_name=unsafe_my_name,timestamp=now)
     resp.headers["Cache-Control"] = "no-store"
     return resp
 
