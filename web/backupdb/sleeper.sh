@@ -1,5 +1,5 @@
 #!/bin/sh
 while true; do
 	./backupdb.sh
-	sleep 1800
+	sleep 3600
 done
