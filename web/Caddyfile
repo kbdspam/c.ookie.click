@@ -1,21 +1,31 @@
-http://ookie.click {
+{
+	# Restrict the admin interface to a local unix file socket whose directory
+	# is restricted to caddy:caddy. By default the TCP socket allows arbitrary
+	# modification for any process and user that has access to the local
+	# interface. If admin over TCP is turned on one should make sure
+	# implications are well understood.
+	admin "unix//run/caddy/admin.socket"
+}
+
+ookie.click {
 	redir https://c.ookie.click/er/
 }
 
-http://c.ookie.click {
+c.ookie.click {
 	root * /site/c.ookie.click/
 	file_server
-	log {
-		output file /var/log/caddy/c.ookie.click.log {
-			roll_size 1000MiB
-			roll_uncompressed
-			roll_keep 8
-			roll_keep_for 168h
-		}
-	}
 
 	redir / /er/
 
 	reverse_proxy /er/leaderboard/wstimer wspollpy:4300
 	reverse_proxy /er/leaderboard/* cookiepy:12345
 }
+
+cursor-party-0.c.ookie.click {
+	handle {
+		reverse_proxy 127.0.0.1:2001
+	}
+	import /etc/caddy/simulcast.conf*
+}
+
+import /etc/caddy/conf.d/*
