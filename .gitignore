@@ -10,3 +10,4 @@ longpoll
 logs
 *.env
 web2
+target
