@@ -1,4 +1,4 @@
-FROM pypy:3
+FROM pypy:3-slim
 WORKDIR /app
 
 COPY requirements.txt .
