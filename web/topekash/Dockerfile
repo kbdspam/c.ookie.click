@@ -1,4 +1,4 @@
-FROM alpine:3.19
+FROM alpine:latest
 WORKDIR /app
 RUN apk add --no-cache jq curl units findutils bash
 COPY topeka.sh .
