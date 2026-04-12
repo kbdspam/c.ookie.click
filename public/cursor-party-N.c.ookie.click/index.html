@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, shrink-to-fit=no"
+    />
+    <title>🍪 Cursor Party 🍪</title>
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="stylesheet" href="normalize.css" />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+        /*
+        body {
+            background-color: black;
+        }
+        */
+    </style>
+  </head>
+  <body>
+    <main>
+      <section id="promo">
+        <h1>
+          <div>🍪 Cursor Party 🍪</div>
+        </h1>
+        <a href="https://c.ookie.click/er/">home</a>
+        <br>
+        <br>
+        a backend page for this <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3268177089">Cookie Clicker addon</a>
+        <br>
+        <br>
+        you can find the source at <a referrerpolicy="no-referrer" href="https://github.com/kbdspam/cursor-party-rewrite">here</a>
+        <br>
+        <br>
+        <div id="counter">?</div>
+      </section>
+    </main>
+    <script>document.cursorPartyCC = "index";</script>
+    <script src="cursors2.js"></script>
+    <script>
+      setInterval(() => {
+        if (document.cursorPartyCount >= 0)
+          document.getElementById("counter").innerHTML = `Connected: ${document.cursorPartyCount+1}`;
+      }, 1 * 1000);
+    </script>
+  </body>
+</html>

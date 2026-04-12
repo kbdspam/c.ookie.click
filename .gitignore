@@ -1,13 +1,9 @@
 *.db
 backup
-venv
-__pycache__
 nogit
 topeka
 thumbnail.png
 preview.png
-longpoll
 logs
 *.env
-web2
 target
