@@ -1,0 +1,12 @@
+{
+ "Name": "Cursor Party",
+ "ID": "cursorParty",
+ "Author": "isekai hero of bhop",
+ "Description": "Cursor party! See other people's cursors and they see yours!",
+ "ModVersion": 8,
+ "AllowSteamAchievs": 1,
+ "GameVersion": 2.052,
+ "Date": "2024-08-17",
+ "Disabled": 0,
+ "Workshop": "3268177089"
+}
