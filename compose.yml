@@ -12,10 +12,6 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - ./c.ookie.click:/site/c.ookie.click:ro
       - ${LOGS_DIR}:/var/log/caddy
-  wspollpy:
-    build: wspollpy
-    restart: unless-stopped
-    stop_grace_period: 2s
   cookiepy:
     build: cookiepy
     restart: unless-stopped

@@ -1,6 +1,5 @@
 *.db
 backup
-nogit
 topeka
 thumbnail.png
 preview.png

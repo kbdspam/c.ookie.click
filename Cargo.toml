@@ -1,24 +1,32 @@
 [package]
-name = "cursor-party-rewrite"
-version = "0.2.0"
-edition = "2021"
+name = "c-ookie-click"
+version = "1.0.0"
+edition = "2024"
 
 [dependencies]
 anyhow = "1"
 thiserror = "2"
 
-time = "0.3"
+jiff = "0.2"
 
 bytestring = "1.4"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-actix = "0.13"
-actix-files = "0.6"
-actix-web = "4"
-actix-web-actors = "4.3"
+#sonic-rs = "0.3"
+simd-json = "0.17"
+
+axum = { version = "0.8.9", features = ["http2", "macros", "ws"] }
+
 idna_adapter = { version = "=1.0.0", optional = true } # locked to 1.0.0 to prevent pulling in a ton of unicode bullshit
 
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
+#tokio-rusqlite = { version = "0.7", features = ["bundled"] }
+tower = { version = "0.5", features = ["full"] }
+
+rand = "0.10.1"
+itertools = "0.14.0"
+
+sqlx = { version = "0.9.0-alpha.1", features = ["runtime-tokio", "sqlite", "derive"] }
