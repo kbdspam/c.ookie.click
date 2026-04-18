@@ -1,4 +1,17 @@
 services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /etc/caddy:/etc/caddy:ro
+      - /run/caddy:/run/caddy
+      - /tmp/c.ookie.click:/tmp/c.ookie.click
+      - /var/lib/caddy:/var/lib/caddy
+      - /var/log/caddy:/var/log/caddy
   c-ookie-click:
     build: c-ookie-click
     restart: unless-stopped
