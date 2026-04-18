@@ -1,15 +1,18 @@
 // SPDX-License-Identifier:
 // Copyright
 
-#![forbid(unsafe_code)]
-
-use actix_web::{
-	HttpRequest, HttpResponse, HttpServer,
-	web::{self, Bytes, BytesMut},
+use axum::{
+	Router,
+	body::Body,
+	extract::{Query, State, WebSocketUpgrade, ws::WebSocket},
+	http::StatusCode,
+	response::Response,
+	routing::any,
 };
-use actix_web::{App, HttpRequest, HttpServer, Responder, middleware::Logger, web};
-use actix_ws::Message;
+use bytes::{Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tower_http::services::ServeDir;
 
 use std::{
 	collections::{HashMap, HashSet},
@@ -20,7 +23,7 @@ use thiserror::Error;
 // Cookie Clicker runs at 30 fps so there's no reason to go higher...
 const FPS: f64 = 30.0;
 const BROADCAST_INTERVAL: Duration = Duration::from_millis((1.0 / FPS * 1000.0) as u64);
-const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(3);
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(2);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(6);
 
 type ID = u32; // Don't change this willy-nilly because our update message assumes 32-bit integers.
@@ -41,6 +44,10 @@ enum JsonToUser {
 enum JsonFromUser {
 	#[allow(non_camel_case_types)]
 	heartbeat(bool),
+}
+
+enum AppMessage {
+	Connect(ID),
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -70,45 +77,45 @@ impl Position {
 		}
 	}
 }
-struct Session {
-	id: ID,
-	addr: Addr<State>,
-	last_heartbeat: Instant,
+
+struct User {
+	to: UnboundedSender<ToWsMessage>,
+	queued_position: Position,
+	last_broadcasted_position: Position,
 }
-impl Session {
-	fn heartbeat(&self, ctx: &mut ws::WebsocketContext<Self>) {
-		ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
-			if Instant::now().duration_since(act.last_heartbeat) > CLIENT_TIMEOUT {
-				ctx.stop();
-			} else {
-				ctx.text(serde_json::to_string(&JsonFromUser::heartbeat(true)).unwrap().as_str());
-			}
-		});
+struct ServerState {
+	latest_id: ID,
+	broadcast_queued: bool,
+	last_broadcast: std::time::Instant,
+	users: HashMap<ID, User>,
+	queued_updates: HashMap<ID, Position>,
+	queued_removes: Vec<ID>,
+}
+impl Default for ServerState {
+	fn default() -> Self {
+		ServerState {
+			latest_id: 0,
+			broadcast_queued: false,
+			last_broadcast: Instant::now(),
+			users: Default::default(),
+			queued_updates: Default::default(),
+			queued_removes: Default::default(),
+		}
 	}
 }
-impl Actor for Session {
-	type Context = ws::WebsocketContext<Self>;
-	fn started(&mut self, ctx: &mut Self::Context) {
-		self.heartbeat(ctx);
-		self.addr
-			.send(Connect {
-				addr: ctx.address().recipient(),
-			})
-			.into_actor(self)
-			.then(|res, act, ctx| {
-				match res {
-					Ok(res) => act.id = res,
-					_ => ctx.stop(),
-				}
-				fut::ready(())
-			})
-			.wait(ctx);
-	}
-	fn stopping(&mut self, _: &mut Self::Context) -> Running {
-		self.addr.do_send(Remove(self.id));
-		Running::Stop
-	}
+struct AxumState {
+	to_server: UnboundedSender<ToServerMessage>,
 }
+enum ToServerMessage {
+	Connect(UnboundedSender<ToWsMessage>),
+	Remove(ID),
+	PositionUpdate((ID, Position)),
+}
+enum ToWsMessage {
+	MessageToUser(MessageToUser),
+	ConnectResp(ID),
+}
+
 impl Handler<MessageToUser> for Session {
 	type Result = ();
 	fn handle(&mut self, msg: MessageToUser, ctx: &mut Self::Context) -> Self::Result {
@@ -161,83 +168,16 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Session {
 		}
 	}
 }
-struct User {
-	addr: Recipient<MessageToUser>,
-	queued_position: Position,
-	last_broadcasted_position: Position,
-}
-struct State {
-	latest_id: u32,
-	broadcast_queued: bool,
-	last_broadcast: std::time::Instant,
-	users: HashMap<ID, User>,
-	queued_updates: HashMap<ID, Position>,
-	queued_removes: Vec<ID>,
-}
-impl Default for State {
-	fn default() -> Self {
-		State {
-			latest_id: 0,
-			broadcast_queued: false,
-			last_broadcast: std::time::Instant::now(),
-			users: Default::default(),
-			queued_updates: Default::default(),
-			queued_removes: Default::default(),
-		}
-	}
-}
-impl Actor for State {
-	type Context = Context<Self>;
-}
-#[derive(Message, Debug)]
-#[rtype(result = "()")]
+#[derive(Debug)]
 enum MessageToUser {
 	Json(JsonToUser),
 	Binary(Bytes),
 }
-
-#[derive(Message)]
-#[rtype(ID)]
-struct Connect {
-	addr: Recipient<MessageToUser>,
-}
-
-#[derive(Message)]
-#[rtype(result = "()")]
-struct PositionUpdate(ID, Position);
-impl Handler<PositionUpdate> for State {
-	type Result = ();
-	fn handle(&mut self, msg: PositionUpdate, ctx: &mut Self::Context) -> Self::Result {
-		let user = self.users.get_mut(&msg.0).unwrap();
-		user.queued_position = msg.1;
-		if user.last_broadcasted_position == msg.1 {
-			let _ = self.queued_updates.remove(&msg.0);
-		} else {
-			let _ = self.queued_updates.insert(msg.0, msg.1);
-			self.queue_broadcast(ctx);
-		}
-	}
-}
-#[derive(Message)]
-#[rtype(result = "()")]
-struct Remove(ID);
-impl Handler<Remove> for State {
-	type Result = ();
-	fn handle(&mut self, msg: Remove, ctx: &mut Self::Context) -> Self::Result {
-		if self.users.remove(&msg.0).is_some() {
-			println!("left {} ; connections = {}", msg.0, self.users.len());
-			let _ = self.queued_updates.remove(&msg.0);
-			self.queued_removes.push(msg.0);
-			self.queue_broadcast(ctx);
-		}
-	}
-}
-impl Handler<Connect> for State {
-	type Result = ID;
-	fn handle(&mut self, connect_msg: Connect, _: &mut Context<Self>) -> Self::Result {
+impl ServerState {
+	fn handle_connect(&mut self, to_ws: UnboundedSender<ToWsMessage>) {
 		self.latest_id += 1;
 		let id = self.latest_id;
-		connect_msg.addr.do_send(MessageToUser::Json(JsonToUser::myid(id)));
+		to_ws.send(ToWsMessage::ConnectResp(id));
 		let len = self.users.len();
 		if len > 0 {
 			let mut msg = BytesMut::new();
@@ -249,14 +189,14 @@ impl Handler<Connect> for State {
 				msg.extend_from_slice(&user.last_broadcasted_position.x.to_le_bytes());
 				msg.extend_from_slice(&user.last_broadcasted_position.y.to_le_bytes());
 			}
-			connect_msg.addr.do_send(MessageToUser::Binary(msg.freeze()));
+			to_ws.send(ToWsMessage::MessageToUser(MessageToUser::Binary(msg.freeze())));
 		}
 		assert!(
 			self.users
 				.insert(
 					id,
 					User {
-						addr: connect_msg.addr,
+						to: to_ws,
 						queued_position: Position { x: 0.0, y: 0.0 },
 						last_broadcasted_position: Position { x: 0.0, y: 0.0 },
 					}
@@ -265,21 +205,35 @@ impl Handler<Connect> for State {
 		);
 
 		println!("join {id} ; connections = {}", self.users.len());
-
-		id
 	}
-}
-impl State {
-	fn queue_broadcast(&mut self, ctx: &mut <State as actix::Actor>::Context) {
-		let now = std::time::Instant::now();
+	fn handle_remove(&mut self, id: ID) {
+		if self.users.remove(&id).is_some() {
+			println!("left {} ; connections = {}", id, self.users.len());
+			let _ = self.queued_updates.remove(&id);
+			self.queued_removes.push(id);
+			self.queue_broadcast();
+		}
+	}
+	fn handle_position_update(&mut self, id: ID, position: Position) {
+		let user = self.users.get_mut(&id).unwrap();
+		user.queued_position = position;
+		if user.last_broadcasted_position == position {
+			let _ = self.queued_updates.remove(&id);
+		} else {
+			let _ = self.queued_updates.insert(id, position);
+			self.queue_broadcast();
+		}
+	}
+	fn queue_broadcast(&mut self) {
+		let now = Instant::now();
 		if now.duration_since(self.last_broadcast) >= BROADCAST_INTERVAL {
 			self.broadcast_cursors();
 		} else if !self.broadcast_queued {
 			self.broadcast_queued = true;
 			ctx.run_later(BROADCAST_INTERVAL, |act, _ctx| {
-				act.last_broadcast = std::time::Instant::now();
+				act.last_broadcast = Instant::now();
 				if cfg!(debug_assertions) {
-					println!("broadcast {:?}", std::time::Instant::now());
+					println!("broadcast {:?}", act.last_broadcast);
 				}
 				act.broadcast_cursors();
 			});
@@ -394,56 +348,132 @@ impl State {
 	}
 }
 
-fn bad_from_query(req: &HttpRequest) -> bool {
+fn bad_from_query(params: &HashMap<String, String>) -> bool {
 	// Sun Aug 18 2024 21:37:36 GMT+0000
 	if jiff::Timestamp::now() > jiff::Timestamp::from_second(1_724_017_056).unwrap() {
 		// we want "https://cursor-party-0.c.ookie.click/party/rock?from=cc2" and similar...
-		// TODO: It's 2024-10-05 and there's still "cc"'s coming in and I'm not sure how so I give up...
-		!req.full_url()
-			.query_pairs()
-			.any(|(k, v)| k == "from" && (v == "cc" || v == "cc2" || v == "index"))
+		// TODO: It's 2024-10-05 and there's still "cc"'s coming in and I'm not sure how, so I give up...
+		!params.any(|(k, v)| k == "from" && (v == "cc" || v == "cc2" || v == "index"))
 	} else {
 		false
 	}
 }
 
-async fn handle_websocket(
-	req: HttpRequest,
-	stream: web::Payload,
-	state: web::Data<Addr<State>>,
-) -> Result<HttpResponse, actix_web::Error> {
-	if bad_from_query(&req) {
-		return Ok(HttpResponse::Forbidden().finish());
+async fn handle_socket(socket: WebSocket, state: AxumState) {
+	// axum automagically handles ping/pongs for us
+
+	let (mut ws_s, mut ws_r) = socket.split();
+	let (ch_s, mut ch_r) = tokio::sync::mpsc::unbounded_channel();
+	let to_server = state.to_server;
+	to_server.send(ToServerMessage::Connect(ch_s)).unwrap();
+
+	let ToWsMessage::ConnectResp(id) = ch_r.recv().await.unwrap() else {
+		return;
+	};
+
+	tokio::spawn(async move {
+		while let Some(msg) = ch_r.recv().await {
+			let _ = ws_s.send(msg).await;
+		}
+	});
+
+	let mut last_heartbeat = Instant::now();
+	let mut interval = tokio::time::interval(Duration::from_secs(1));
+
+	loop {
+		tokio::select! {
+			_ = interval.tick() => {
+				if last_heartbeat.elapsed() > CLIENT_TIMEOUT {
+					// TODO: kill
+				} else {
+					//ctx.text(serde_json::to_string(&JsonFromUser::heartbeat(true)).unwrap().as_str());
+				}
+			}
+		}
 	}
 
-	ws::start(
-		Session {
-			id: 0,
-			addr: state.get_ref().clone(),
-			last_heartbeat: Instant::now(),
-		},
-		&req,
-		stream,
-	)
+	// TODO:
+	to_server.send(ToServerMessage::Remove(id));
+
+	/*
+	tasks.spawn(async move {
+		while let Ok(_) = ws_s.send(axum::extract::ws::Message::Text(":3".into())).await {
+			tokio::time::sleep(Duration::from_mins(1)).await;
+		}
+	});
+	tasks.spawn(async move {
+		while let Some(Ok(msg)) = recv.next().await {
+			if let Message::Close(_) = msg {
+				break;
+			}
+		}
+	});
+
+	while let Some(_) = tasks.join_next().await {
+		tasks.abort_all();
+	}
+	*/
+}
+
+pub(super) async fn handler(
+	ws: WebSocketUpgrade,
+	Query(params): Query<HashMap<String, String>>,
+	State(state): State<AxumState>,
+) -> Response {
+	if bad_from_query(&params) {
+		Response::builder()
+			.status(StatusCode::FORBIDDEN)
+			.body(Body::empty())
+			.unwrap()
+	} else {
+		ws.on_upgrade(|socket| handle_socket(socket, state))
+	}
+}
+
+async fn server(mut from_ws: UnboundedReceiver<ToServerMessage>) -> anyhow::Result<()> {
+	let mut state = ServerState::default();
+
+	while let Some(msg_from_ws) = from_ws.recv().await {
+		match msg_from_ws {
+			ToServerMessage::Connect(to_ws) => {
+				state.handle_connect(to_ws);
+			}
+			ToServerMessage::Remove(id) => {
+				state.handle_remove(id);
+			}
+			ToServerMessage::PositionUpdate((id, position)) => {
+				state.handle_position_update(id, position);
+			}
+		}
+	}
+
+	anyhow::bail!("how are we here...");
 }
 
 pub(super) async fn run() -> anyhow::Result<()> {
-	// let state: SharedState = Default::default();
-	let state = State::default().start();
-	HttpServer::new(move || {
-		actix_web::App::new()
-			.app_data(web::Data::new(state.clone()))
-			.route("/party/rock", web::get().to(handle_websocket))
-			// >If the mount path is set as the root path /, services registered after this one will be inaccessible. Register more specific handlers and services first.
-			.service(
-				actix_files::Files::new("/", "./public/cursor-party-N.c.ookie.click/")
-					.prefer_utf8(true)
-					.index_file("index.html"),
-			)
-	})
-	// TODO: .bind_uds() on Linux for a unix socket... // Caddy with unix+h2c//tmp/c.ookie.click/sock.sock
-	//       hell https://github.com/actix/actix-web/blob/3556ae0b4f106c980edc53db862842f456d48652/actix-http/examples/h2c-detect.rs#L29
-	.bind_auto_h2c(("127.0.0.1", 2001))?
-	.run()
-	.await
+	let mut tasks = tokio::task::JoinSet::new();
+
+	let (ch_s, ch_r) = tokio::sync::mpsc::unbounded_channel();
+
+	tasks.spawn(server(ch_r));
+
+	let state = AxumState { to_server: ch_s };
+	let app = Router::new()
+		.fallback_service(ServeDir::new("public/cursor-party-N.c.ookie.click"))
+		.route("/party/rock", any(handler))
+		.with_state(state);
+
+	#[cfg(debug_assertions)]
+	tasks.spawn(axum::serve(tokio::net::TcpListener::bind("127.0.0.1:8081").await?, app));
+	#[cfg(not(debug_assertions))]
+	tasks.spawn(axum::serve(
+		crate::get_uds("/tmp/c.ookie.click/cursor-party.sock".into()).await?,
+		app,
+	));
+
+	while let Some(t) = tasks.join_next().await {
+		t??;
+	}
+
+	anyhow::bail!("????");
 }

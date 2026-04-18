@@ -9,6 +9,7 @@ use axum::{
 	Router,
 	extract::State,
 	http::{HeaderMap, StatusCode},
+	response::Redirect,
 	routing::{any, get, post},
 };
 use itertools::Itertools;
@@ -17,8 +18,9 @@ use sqlx::{
 	AssertSqlSafe,
 	sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous},
 };
+use tower_http::services::ServeDir;
 
-struct AppState {
+struct AxumState {
 	pool: sqlx::Pool<sqlx::Sqlite>,
 }
 
@@ -30,6 +32,8 @@ struct ClickersRow {
 }
 
 pub(super) async fn run() -> anyhow::Result<()> {
+	let dbpath = std::env::var("LEADERBOARDDB").unwrap_or_else(|_| "./leaderboard.db".to_owned());
+
 	let pool = SqlitePoolOptions::new()
 		.max_connections(10)
 		.min_connections(2)
@@ -38,18 +42,20 @@ pub(super) async fn run() -> anyhow::Result<()> {
 				.create_if_missing(true)
 				.journal_mode(SqliteJournalMode::Wal)
 				.synchronous(SqliteSynchronous::Extra)
-				.filename("./leaderboard.db"),
+				.filename(dbpath),
 		)
 		.await?;
 
 	// https://docs.rs/sqlx/latest/sqlx/migrate/trait.MigrationSource.html
 	sqlx::migrate!().run(&pool).await?;
 
-	// TODO: <create/migrate DB here>
+	let state = Arc::new(AxumState { pool });
 
-	let state = Arc::new(AppState { pool });
-
+	// TODO: tracing
+	// TODO: tower_http::sensitive_headers
 	let app = Router::new()
+		.route("/", get(|| async { Redirect::permanent("/er/") }))
+		.fallback_service(ServeDir::new("public/c.ookie.click"))
 		.route("/er/leaderboard/register", post(leaderboard_register))
 		.route("/er/leaderboard/changemyname", post(leaderboard_changemyname))
 		.route("/er/leaderboard/create", post(leaderboard_create))
@@ -63,7 +69,11 @@ pub(super) async fn run() -> anyhow::Result<()> {
 		.route("/er/leaderboard/wstimer", any(crate::wstimer::handler))
 		.with_state(state);
 
+	#[cfg(debug_assertions)]
+	axum::serve(tokio::net::TcpListener::bind("127.0.0.1:8080").await?, app).await?;
+	#[cfg(not(debug_assertions))]
 	axum::serve(crate::get_uds("/tmp/c.ookie.click/main.sock".into()).await?, app).await?;
+
 	Ok(())
 }
 
@@ -159,7 +169,7 @@ fn get_leaderboard_id(headers: &HeaderMap) -> Result<i64, (StatusCode, String)> 
 
 async fn leaderboard_register(
 	headers: HeaderMap,
-	State(state): State<Arc<AppState>>,
+	State(state): State<Arc<AxumState>>,
 ) -> Result<String, (StatusCode, String)> {
 	check_for_bad_workshop_id(&headers)?;
 	disabled_registering().await?;
@@ -181,7 +191,7 @@ async fn leaderboard_register(
 
 async fn leaderboard_changemyname(
 	headers: HeaderMap,
-	State(state): State<Arc<AppState>>,
+	State(state): State<Arc<AxumState>>,
 ) -> Result<String, (StatusCode, String)> {
 	check_for_bad_workshop_id(&headers)?;
 	disabled_registering().await?;
@@ -214,7 +224,7 @@ async fn leaderboard_changemyname(
 
 async fn leaderboard_create(
 	headers: HeaderMap,
-	State(state): State<Arc<AppState>>,
+	State(state): State<Arc<AxumState>>,
 ) -> Result<String, (StatusCode, String)> {
 	check_for_bad_workshop_id(&headers)?;
 	disabled_leaderboard_create().await?;
@@ -275,7 +285,7 @@ async fn leaderboard_create(
 
 async fn leaderboard_cycleboardcookie(
 	headers: HeaderMap,
-	State(state): State<Arc<AppState>>,
+	State(state): State<Arc<AxumState>>,
 ) -> Result<String, (StatusCode, String)> {
 	check_for_bad_workshop_id(&headers)?;
 	let cookie = get_cookie(&headers)?;
@@ -322,7 +332,7 @@ async fn leaderboard_cycleboardcookie(
 
 async fn leaderboard_changeboardname(
 	headers: HeaderMap,
-	State(state): State<Arc<AppState>>,
+	State(state): State<Arc<AxumState>>,
 ) -> Result<String, (StatusCode, String)> {
 	check_for_bad_workshop_id(&headers)?;
 	let cookie = get_cookie(&headers)?;
@@ -370,7 +380,7 @@ async fn leaderboard_changeboardname(
 
 async fn leaderboard_kick(
 	headers: HeaderMap,
-	State(state): State<Arc<AppState>>,
+	State(state): State<Arc<AxumState>>,
 ) -> Result<String, (StatusCode, String)> {
 	check_for_bad_workshop_id(&headers)?;
 	let cookie = get_cookie(&headers)?;
@@ -449,7 +459,7 @@ async fn leaderboard_kick(
 
 async fn leaderboard_updateme(
 	headers: HeaderMap,
-	State(state): State<Arc<AppState>>,
+	State(state): State<Arc<AxumState>>,
 ) -> Result<String, (StatusCode, String)> {
 	check_for_bad_workshop_id(&headers)?;
 	let cookie = get_cookie(&headers)?;
@@ -489,7 +499,7 @@ async fn leaderboard_updateme(
 
 async fn leaderboard_query(
 	headers: HeaderMap,
-	State(state): State<Arc<AppState>>,
+	State(state): State<Arc<AxumState>>,
 ) -> Result<String, (StatusCode, String)> {
 	check_for_bad_workshop_id(&headers)?;
 	let cookie = get_cookie(&headers)?;
@@ -586,7 +596,7 @@ async fn leaderboard_query(
 
 async fn leaderboard_leave(
 	headers: HeaderMap,
-	State(state): State<Arc<AppState>>,
+	State(state): State<Arc<AxumState>>,
 ) -> Result<String, (StatusCode, String)> {
 	check_for_bad_workshop_id(&headers)?;
 	let cookie = get_cookie(&headers)?;
@@ -659,7 +669,7 @@ async fn leaderboard_leave(
 
 async fn leaderboard_join(
 	headers: HeaderMap,
-	State(state): State<Arc<AppState>>,
+	State(state): State<Arc<AxumState>>,
 ) -> Result<String, (StatusCode, String)> {
 	check_for_bad_workshop_id(&headers)?;
 	let cookie = get_cookie(&headers)?;

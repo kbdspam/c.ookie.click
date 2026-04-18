@@ -12,13 +12,7 @@ ookie.click {
 }
 
 c.ookie.click {
-	root * /site/c.ookie.click/
-	file_server
-
-	redir / /er/
-
 	# TODO: rate-limit by IP so wstimer actually works...
-
 	reverse_proxy /er/leaderboard/* unix+h2c://tmp/c.ookie.click/main.sock
 }
 

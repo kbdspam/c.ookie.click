@@ -18,14 +18,14 @@ async fn handle_socket(socket: WebSocket) {
 
 	// axum automagically handles ping/pongs for us
 
-	let mut set = tokio::task::JoinSet::new();
+	let mut tasks = tokio::task::JoinSet::new();
 
-	set.spawn(async move {
+	tasks.spawn(async move {
 		while let Ok(_) = send.send(axum::extract::ws::Message::Text(":3".into())).await {
 			tokio::time::sleep(Duration::from_mins(1)).await;
 		}
 	});
-	set.spawn(async move {
+	tasks.spawn(async move {
 		while let Some(Ok(msg)) = recv.next().await {
 			if let Message::Close(_) = msg {
 				break;
@@ -33,7 +33,7 @@ async fn handle_socket(socket: WebSocket) {
 		}
 	});
 
-	while let Some(_) = set.join_next().await {
-		set.abort_all();
+	while let Some(_) = tasks.join_next().await {
+		tasks.abort_all();
 	}
 }

@@ -7,10 +7,11 @@ use std::path::PathBuf;
 
 use tokio::net::UnixListener;
 
-//mod cursor_party;
+mod cursor_party;
 mod leaderboard;
 mod wstimer;
 
+#[allow(dead_code)]
 async fn get_uds(path: PathBuf) -> anyhow::Result<UnixListener> {
 	let _ = tokio::fs::remove_file(&path).await;
 	tokio::fs::create_dir_all(path.parent().unwrap()).await?;
@@ -23,15 +24,16 @@ fn main() -> anyhow::Result<()> {
 		std::env::set_var("RUST_BACKTRACE", "full");
 	}
 	*/
+	dotenvy::dotenv()?;
 
 	//tracing_subscriber::fmt::init();
 
 	tokio::runtime::Runtime::new().unwrap().block_on(async {
-		let mut set = tokio::task::JoinSet::new();
-		set.spawn(leaderboard::run());
-		//set.spawn(cursor_party::run());
+		let mut tasks = tokio::task::JoinSet::new();
+		tasks.spawn(leaderboard::run());
+		tasks.spawn(cursor_party::run());
 
-		while let Some(t) = set.join_next().await {
+		while let Some(t) = tasks.join_next().await {
 			t??;
 		}
 
