@@ -1,34 +1,29 @@
 services:
-  tunnel:
-    image: cloudflare/cloudflared
+  c-ookie-click:
+    build: c-ookie-click
     restart: unless-stopped
-    command: tunnel run --protocol http2
+    stop_grace_period: 1s
     environment:
-      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
+      - LEADERBOARDDB=/data/leaderboard.db
+      - PUBLICDIR=/site
+    ports:
+      - "127.0.0.1:2001:2001/tcp"
+      - "127.0.0.1:8080:8080/tcp"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - ./c.ookie.click:/site/c.ookie.click:ro
-      - ${LOGS_DIR}:/var/log/caddy
-  cookiepy:
-    build: cookiepy
-    restart: unless-stopped
-    stop_grace_period: 5s
-    volumes:
-      - ${DB_DIR}:/data
+      - ./data:/data
+      - ./public:/site:ro
+      - /tmp/c.ookie.click:/tmp/c.ookie.click
   topekash:
     build: topekash
     restart: unless-stopped
-    stop_grace_period: 2s
+    stop_grace_period: 1s
     volumes:
       - type: bind
-        source: ./c.ookie.click/er/topeka
+        source: ./public/c.ookie.click/er/topeka
         target: /app/topeka
   backupdb:
     build: backupdb
     restart: unless-stopped
-    stop_grace_period: 5s
+    stop_grace_period: 1s
     volumes:
-      - ${DB_DIR}:/data
+      - ./data:/data

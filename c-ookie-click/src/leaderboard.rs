@@ -3,7 +3,7 @@
 
 // TODO: rate-limiting
 
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use axum::{
 	Router,
@@ -32,7 +32,7 @@ struct ClickersRow {
 }
 
 pub(super) async fn run() -> anyhow::Result<()> {
-	let dbpath = std::env::var("LEADERBOARDDB").unwrap_or_else(|_| "./leaderboard.db".to_owned());
+	let dbpath = std::env::var("LEADERBOARDDB").unwrap_or_else(|_| "../leaderboard.db".to_owned());
 
 	let pool = SqlitePoolOptions::new()
 		.max_connections(10)
@@ -51,11 +51,14 @@ pub(super) async fn run() -> anyhow::Result<()> {
 
 	let state = Arc::new(AxumState { pool });
 
+	let dir =
+		PathBuf::from(&std::env::var("PUBLICDIR").unwrap_or_else(|_| "../public".to_owned())).join("c.ookie.click");
+
 	// TODO: tracing
 	// TODO: tower_http::sensitive_headers
 	let app = Router::new()
 		.route("/", get(|| async { Redirect::permanent("/er/") }))
-		.fallback_service(ServeDir::new("public/c.ookie.click"))
+		.fallback_service(ServeDir::new(dir))
 		.route("/er/leaderboard/register", post(leaderboard_register))
 		.route("/er/leaderboard/changemyname", post(leaderboard_changemyname))
 		.route("/er/leaderboard/create", post(leaderboard_create))
@@ -69,10 +72,19 @@ pub(super) async fn run() -> anyhow::Result<()> {
 		.route("/er/leaderboard/wstimer", any(crate::wstimer::handler))
 		.with_state(state);
 
-	#[cfg(debug_assertions)]
-	axum::serve(tokio::net::TcpListener::bind("127.0.0.1:8080").await?, app).await?;
-	#[cfg(not(debug_assertions))]
-	axum::serve(crate::get_uds("/tmp/c.ookie.click/main.sock".into()).await?, app).await?;
+	let mut tasks = tokio::task::JoinSet::new();
+
+	tasks.spawn({
+		let app = app.clone();
+		async move { anyhow::Ok(axum::serve(tokio::net::TcpListener::bind("0.0.0.0:8080").await?, app).await?) }
+	});
+	tasks.spawn(
+		async move { Ok(axum::serve(crate::get_uds("/tmp/c.ookie.click/main.sock".into()).await?, app).await?) },
+	);
+
+	while let Some(t) = tasks.join_next().await {
+		t??;
+	}
 
 	Ok(())
 }

@@ -17,6 +17,7 @@ use tower_http::services::ServeDir;
 
 use std::{
 	collections::{HashMap, HashSet},
+	path::PathBuf,
 	time::{Duration, Instant},
 };
 use thiserror::Error;
@@ -355,7 +356,6 @@ async fn handle_socket(socket: WebSocket, state: AxumState) {
 				};
 				match msg {
 					MessageToUser::Json(j) => {
-						// TODO: zero-copy...
 						let _ = send_to_ws_s.send(axum::extract::ws::Message::Text(serde_json::to_string(&j).unwrap().into()));
 					}
 					MessageToUser::Binary(b) => {
@@ -462,19 +462,26 @@ pub(super) async fn run() -> anyhow::Result<()> {
 
 	tasks.spawn(server(ch_r));
 
+	let dir = PathBuf::from(&std::env::var("PUBLICDIR").unwrap_or_else(|_| "../public".to_owned()))
+		.join("cursor-party-N.c.ookie.click");
+
 	let state = AxumState { to_server: ch_s };
 	let app = Router::new()
-		.fallback_service(ServeDir::new("public/cursor-party-N.c.ookie.click"))
+		.fallback_service(ServeDir::new(dir))
 		.route("/party/rock", any(handler))
 		.with_state(state);
 
-	if cfg!(debug_assertions) {
-		let socket = tokio::net::TcpListener::bind("127.0.0.1:2001").await?;
-		tasks.spawn(async move { Ok(axum::serve(socket, app).await?) });
-	} else {
-		let socket = crate::get_uds("/tmp/c.ookie.click/cursor-party.sock".into()).await?;
-		tasks.spawn(async move { Ok(axum::serve(socket, app).await?) });
-	}
+	tasks.spawn({
+		let app = app.clone();
+		async move { Ok(axum::serve(tokio::net::TcpListener::bind("0.0.0.0:2001").await?, app).await?) }
+	});
+	tasks.spawn(async move {
+		Ok(axum::serve(
+			crate::get_uds("/tmp/c.ookie.click/cursor-party.sock".into()).await?,
+			app,
+		)
+		.await?)
+	});
 
 	while let Some(t) = tasks.join_next().await {
 		t??;

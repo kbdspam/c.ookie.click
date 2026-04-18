@@ -1,7 +1,7 @@
 // SPDX-License-Identifier:
 // Copyright
 
-#![forbid(unsafe_code)]
+//#![forbid(unsafe_code)]
 
 use std::path::PathBuf;
 
@@ -19,12 +19,9 @@ async fn get_uds(path: PathBuf) -> anyhow::Result<UnixListener> {
 }
 
 fn main() -> anyhow::Result<()> {
-	/*
 	unsafe {
 		std::env::set_var("RUST_BACKTRACE", "full");
 	}
-	*/
-	dotenvy::dotenv()?;
 
 	//tracing_subscriber::fmt::init();
 

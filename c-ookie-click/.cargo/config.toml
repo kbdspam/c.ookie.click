@@ -8,7 +8,7 @@ linker = "rust-lld"
 rustflags = [
 	"-Ctarget-cpu=native",
 	"-Clink-arg=-fuse-ld=mold",
-	"-Clinker=clang++",
+	#"-Clinker=clang++",
 
 	# Mostly from https://github.com/EmbarkStudios/rust-ecosystem/blob/main/lints.toml
 	#"-Dunsafe_code",
