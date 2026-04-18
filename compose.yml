@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 1s
     environment:
-      - LEADERBOARDDB=/data/leaderboard.db
+      - DBDIR=/data
       - PUBLICDIR=/site
     ports:
       - "127.0.0.1:2001:2001/tcp"
@@ -13,17 +13,3 @@ services:
       - ./data:/data
       - ./public:/site:ro
       - /tmp/c.ookie.click:/tmp/c.ookie.click
-  topekash:
-    build: topekash
-    restart: unless-stopped
-    stop_grace_period: 1s
-    volumes:
-      - type: bind
-        source: ./public/c.ookie.click/er/topeka
-        target: /app/topeka
-  backupdb:
-    build: backupdb
-    restart: unless-stopped
-    stop_grace_period: 1s
-    volumes:
-      - ./data:/data

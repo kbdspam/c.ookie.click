@@ -32,7 +32,8 @@ struct ClickersRow {
 }
 
 pub(super) async fn run() -> anyhow::Result<()> {
-	let dbpath = std::env::var("LEADERBOARDDB").unwrap_or_else(|_| "../leaderboard.db".to_owned());
+	let dbpath =
+		PathBuf::from(&std::env::var("DBPATH").unwrap_or_else(|_| "../data".to_owned())).join("leaderboard.db");
 
 	let pool = SqlitePoolOptions::new()
 		.max_connections(10)

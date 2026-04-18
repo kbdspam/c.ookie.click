@@ -7,8 +7,10 @@ use std::path::PathBuf;
 
 use tokio::net::UnixListener;
 
+mod backupdb;
 mod cursor_party;
 mod leaderboard;
+mod topeka;
 mod wstimer;
 
 #[allow(dead_code)]
@@ -27,8 +29,10 @@ fn main() -> anyhow::Result<()> {
 
 	tokio::runtime::Runtime::new().unwrap().block_on(async {
 		let mut tasks = tokio::task::JoinSet::new();
-		tasks.spawn(leaderboard::run());
+		tasks.spawn(backupdb::run());
 		tasks.spawn(cursor_party::run());
+		tasks.spawn(leaderboard::run());
+		tasks.spawn(topeka::run());
 
 		while let Some(t) = tasks.join_next().await {
 			t??;

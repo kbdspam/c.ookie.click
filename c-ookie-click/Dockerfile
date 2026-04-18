@@ -4,7 +4,7 @@ FROM rust:latest AS builder
 
 WORKDIR /usr/src/app
 COPY . .
-RUN apt update && apt install mold
+RUN apt update && apt install -y mold
 # Will build and cache the binary and dependent crates in release mode
 RUN --mount=type=cache,target=/usr/local/cargo,from=rust:latest,source=/usr/local/cargo \
     --mount=type=cache,target=target \
@@ -12,6 +12,7 @@ RUN --mount=type=cache,target=/usr/local/cargo,from=rust:latest,source=/usr/loca
 
 # Runtime image
 FROM debian:stable-slim
+RUN apt update && apt install -y curl
 
 # Run as "app" user
 RUN useradd -ms /bin/bash app
