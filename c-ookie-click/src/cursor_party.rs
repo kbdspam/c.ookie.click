@@ -22,7 +22,6 @@ use std::{
 };
 use thiserror::Error;
 
-// Cookie Clicker runs at 30 fps so there's no reason to go higher...
 const FPS: f64 = 30.0;
 const BROADCAST_INTERVAL: Duration = Duration::from_millis((1.0 / FPS * 1000.0) as u64);
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(2);
