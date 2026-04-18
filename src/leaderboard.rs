@@ -35,11 +35,15 @@ pub(super) async fn run() -> anyhow::Result<()> {
 		.min_connections(2)
 		.connect_with(
 			SqliteConnectOptions::new()
+				.create_if_missing(true)
 				.journal_mode(SqliteJournalMode::Wal)
 				.synchronous(SqliteSynchronous::Extra)
-				.filename("/data/leaderboard.db"),
+				.filename("./leaderboard.db"),
 		)
 		.await?;
+
+	// https://docs.rs/sqlx/latest/sqlx/migrate/trait.MigrationSource.html
+	sqlx::migrate!().run(&pool).await?;
 
 	// TODO: <create/migrate DB here>
 
@@ -168,6 +172,8 @@ async fn leaderboard_register(
 		.execute(&state.pool)
 		.await
 		.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "sql query failed".to_owned()))?;
+
+	// disabled global-leaderboard joining
 	//cur.execute("INSERT INTO joinedboards(clicker, board) VALUES (?,1);", (cur.last_insert_rowid,))
 
 	Ok(cookie)
@@ -257,7 +263,7 @@ async fn leaderboard_create(
 	.execute(&mut *db)
 	.await
 	.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "sql query failed".to_owned()))?;
-	// splitting these queries because idk if last_insert_rowd() works in a transaction...
+	// <splitting these queries because idk if last_insert_rowd() works in a transaction>
 	sqlx::query("INSERT INTO joinedboards(clicker, board) VALUES (?, last_insert_rowid());")
 		.bind(cid)
 		.execute(&mut *db)
@@ -523,8 +529,6 @@ async fn leaderboard_query(
 			Ok,
 		)?;
 
-	let unsafe_my_name = clicker.name.unwrap_or_default();
-
 	let clickers: Vec<(i64, String, f64, f64, i64, bool)> = sqlx::query_as(
 		"
 		SELECT
@@ -571,7 +575,7 @@ async fn leaderboard_query(
 		"boardvalues": clickers,
 		"you": clicker.id,
 		"can_mod": clicker.can_mod,
-		"unsafe_my_name": unsafe_my_name,
+		"unsafe_my_name": clicker.name.unwrap_or_default(),
 		"timestamp": now
 	});
 

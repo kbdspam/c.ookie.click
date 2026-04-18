@@ -6,3 +6,4 @@ preview.png
 logs
 *.env
 target
+*.db*
