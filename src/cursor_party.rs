@@ -10,6 +10,7 @@ use axum::{
 	routing::any,
 };
 use bytes::{Bytes, BytesMut};
+use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tower_http::services::ServeDir;
@@ -46,10 +47,6 @@ enum JsonFromUser {
 	heartbeat(bool),
 }
 
-enum AppMessage {
-	Connect(ID),
-}
-
 #[derive(Copy, Clone, PartialEq)]
 struct Position {
 	x: f32,
@@ -79,20 +76,35 @@ impl Position {
 }
 
 struct User {
-	to: UnboundedSender<ToWsMessage>,
+	to: UnboundedSender<MessageToUser>,
 	queued_position: Position,
 	last_broadcasted_position: Position,
 }
 struct ServerState {
 	latest_id: ID,
-	broadcast_queued: bool,
 	last_broadcast: std::time::Instant,
 	users: HashMap<ID, User>,
 	queued_updates: HashMap<ID, Position>,
 	queued_removes: Vec<ID>,
+	queue_timer_task: tokio::task::JoinHandle<()>,
+	broadcast_queuer: tokio::sync::mpsc::Sender<()>,
+	broadcast_starter: tokio::sync::mpsc::Receiver<()>,
+	broadcast_queued: bool,
 }
 impl Default for ServerState {
 	fn default() -> Self {
+		let (broadcast_queuer, mut b) = tokio::sync::mpsc::channel(4);
+		let (c, broadcast_starter) = tokio::sync::mpsc::channel(4);
+
+		let queue_timer_task = tokio::spawn(async move {
+			while let Some(_) = b.recv().await {
+				tokio::time::sleep(BROADCAST_INTERVAL).await;
+				if let Err(_) = c.blocking_send(()) {
+					break;
+				}
+			}
+		});
+
 		ServerState {
 			latest_id: 0,
 			broadcast_queued: false,
@@ -100,84 +112,36 @@ impl Default for ServerState {
 			users: Default::default(),
 			queued_updates: Default::default(),
 			queued_removes: Default::default(),
+			queue_timer_task: queue_timer_task,
+			broadcast_queuer: broadcast_queuer,
+			broadcast_starter: broadcast_starter,
 		}
 	}
 }
+#[derive(Clone)]
 struct AxumState {
 	to_server: UnboundedSender<ToServerMessage>,
 }
 enum ToServerMessage {
-	Connect(UnboundedSender<ToWsMessage>),
+	Connect((UnboundedSender<MessageToUser>, tokio::sync::oneshot::Sender<ID>)),
 	Remove(ID),
 	PositionUpdate((ID, Position)),
 }
-enum ToWsMessage {
-	MessageToUser(MessageToUser),
-	ConnectResp(ID),
-}
 
-impl Handler<MessageToUser> for Session {
-	type Result = ();
-	fn handle(&mut self, msg: MessageToUser, ctx: &mut Self::Context) -> Self::Result {
-		// println!("sending {:?} to {}", msg, self.id);
-		match msg {
-			MessageToUser::Json(j) => {
-				// TODO: zero-copy...
-				ctx.text(serde_json::to_string(&j).unwrap().as_str());
-			}
-			MessageToUser::Binary(b) => {
-				ctx.binary(b);
-			}
-		}
-	}
-}
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Session {
-	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-		let Ok(msg) = msg else {
-			ctx.stop();
-			return;
-		};
-		match msg {
-			// ws::Message::Ping(msg) => {
-			// 	self.last_heartbeat = Instant::now();
-			// 	ctx.pong(&msg);
-			// }
-			// ws::Message::Pong(_) => {
-			// 	self.last_heartbeat = Instant::now();
-			// }
-			ws::Message::Text(text) => {
-				let Ok(j) = serde_json::from_str::<JsonFromUser>(&text) else {
-					ctx.stop();
-					return;
-				};
-				match j {
-					JsonFromUser::heartbeat(_) => {
-						self.last_heartbeat = Instant::now();
-					}
-				}
-				// println!("text = '{text}'");
-			}
-			ws::Message::Binary(b) => {
-				let Ok(pos) = Position::get(&b) else {
-					ctx.stop();
-					return;
-				};
-				self.addr.do_send(PositionUpdate(self.id, pos));
-			}
-			_ => (),
-		}
-	}
-}
 #[derive(Debug)]
 enum MessageToUser {
 	Json(JsonToUser),
 	Binary(Bytes),
 }
 impl ServerState {
-	fn handle_connect(&mut self, to_ws: UnboundedSender<ToWsMessage>) {
+	fn handle_connect(
+		&mut self,
+		to_ws: UnboundedSender<MessageToUser>,
+		connection_id_tx: tokio::sync::oneshot::Sender<ID>,
+	) {
 		self.latest_id += 1;
 		let id = self.latest_id;
-		to_ws.send(ToWsMessage::ConnectResp(id));
+		let _ = connection_id_tx.send(id);
 		let len = self.users.len();
 		if len > 0 {
 			let mut msg = BytesMut::new();
@@ -189,7 +153,9 @@ impl ServerState {
 				msg.extend_from_slice(&user.last_broadcasted_position.x.to_le_bytes());
 				msg.extend_from_slice(&user.last_broadcasted_position.y.to_le_bytes());
 			}
-			to_ws.send(ToWsMessage::MessageToUser(MessageToUser::Binary(msg.freeze())));
+			if let Err(_) = to_ws.send(MessageToUser::Binary(msg.freeze())) {
+				return;
+			}
 		}
 		assert!(
 			self.users
@@ -230,18 +196,12 @@ impl ServerState {
 			self.broadcast_cursors();
 		} else if !self.broadcast_queued {
 			self.broadcast_queued = true;
-			ctx.run_later(BROADCAST_INTERVAL, |act, _ctx| {
-				act.last_broadcast = Instant::now();
-				if cfg!(debug_assertions) {
-					println!("broadcast {:?}", act.last_broadcast);
-				}
-				act.broadcast_cursors();
-			});
+			self.broadcast_queuer.blocking_send(()).unwrap();
 		}
 	}
 	fn broadcast_cursors(&mut self) {
 		if self.queued_removes.is_empty() && self.queued_updates.is_empty() {
-			// maybe we're here if we queued a broadcast in Handler<PositionUpdate>::handle() but
+			// maybe we're here if we queued a broadcast in handle_position_update() but
 			// later removed the queued update because they returned to the original position...
 			return;
 		}
@@ -257,11 +217,7 @@ impl ServerState {
 			let msg = self.make_msg_for_idle_users().freeze();
 			// println!("msg = {:?}", msg);
 			for id in &idle_users {
-				self.users
-					.get(id)
-					.unwrap()
-					.addr
-					.do_send(MessageToUser::Binary(msg.clone()));
+				let _ = self.users.get(id).unwrap().to.send(MessageToUser::Binary(msg.clone()));
 			}
 		}
 
@@ -272,11 +228,7 @@ impl ServerState {
 					user.last_broadcasted_position = user.queued_position;
 				}
 				if let Some(msg) = self.make_msg_for_updated_user(*id) {
-					self.users
-						.get(id)
-						.unwrap()
-						.addr
-						.do_send(MessageToUser::Binary(msg.freeze()));
+					let _ = self.users.get(id).unwrap().to.send(MessageToUser::Binary(msg.freeze()));
 				}
 			}
 		}
@@ -353,7 +305,9 @@ fn bad_from_query(params: &HashMap<String, String>) -> bool {
 	if jiff::Timestamp::now() > jiff::Timestamp::from_second(1_724_017_056).unwrap() {
 		// we want "https://cursor-party-0.c.ookie.click/party/rock?from=cc2" and similar...
 		// TODO: It's 2024-10-05 and there's still "cc"'s coming in and I'm not sure how, so I give up...
-		!params.any(|(k, v)| k == "from" && (v == "cc" || v == "cc2" || v == "index"))
+		!params
+			.iter()
+			.any(|(k, v)| k == "from" && (v == "cc" || v == "cc2" || v == "index"))
 	} else {
 		false
 	}
@@ -363,59 +317,91 @@ async fn handle_socket(socket: WebSocket, state: AxumState) {
 	// axum automagically handles ping/pongs for us
 
 	let (mut ws_s, mut ws_r) = socket.split();
-	let (ch_s, mut ch_r) = tokio::sync::mpsc::unbounded_channel();
+	let (to_me, mut from_server) = tokio::sync::mpsc::unbounded_channel();
 	let to_server = state.to_server;
-	to_server.send(ToServerMessage::Connect(ch_s)).unwrap();
 
-	let ToWsMessage::ConnectResp(id) = ch_r.recv().await.unwrap() else {
+	let (connection_id_tx, connection_id_rx) = tokio::sync::oneshot::channel();
+
+	to_server
+		.send(ToServerMessage::Connect((to_me, connection_id_tx)))
+		.unwrap();
+
+	let Ok(id) = connection_id_rx.await else {
 		return;
 	};
 
+	let (send_to_ws_s, mut send_to_ws_r) = tokio::sync::mpsc::unbounded_channel();
 	tokio::spawn(async move {
-		while let Some(msg) = ch_r.recv().await {
+		while let Some(msg) = send_to_ws_r.recv().await {
 			let _ = ws_s.send(msg).await;
 		}
 	});
 
 	let mut last_heartbeat = Instant::now();
-	let mut interval = tokio::time::interval(Duration::from_secs(1));
+	let mut interval = tokio::time::interval(HEARTBEAT_INTERVAL);
 
 	loop {
 		tokio::select! {
 			_ = interval.tick() => {
 				if last_heartbeat.elapsed() > CLIENT_TIMEOUT {
-					// TODO: kill
+					break;
 				} else {
-					//ctx.text(serde_json::to_string(&JsonFromUser::heartbeat(true)).unwrap().as_str());
+					let _ = send_to_ws_s.send(axum::extract::ws::Message::Text(serde_json::to_string(&JsonFromUser::heartbeat(true)).unwrap().into()));
+				}
+			}
+			msg = from_server.recv() => {
+				let Some(msg) = msg else {
+					break;
+				};
+				match msg {
+					MessageToUser::Json(j) => {
+						// TODO: zero-copy...
+						let _ = send_to_ws_s.send(axum::extract::ws::Message::Text(serde_json::to_string(&j).unwrap().into()));
+					}
+					MessageToUser::Binary(b) => {
+						let _ = send_to_ws_s.send(axum::extract::ws::Message::Binary(b));
+					}
+				}
+			}
+			msg = ws_r.next() => {
+				let Some(Ok(msg)) = msg else {
+					break;
+				};
+				// ws::Message::Ping(msg) => {
+				// 	self.last_heartbeat = Instant::now();
+				// 	ctx.pong(&msg);
+				// }
+				// ws::Message::Pong(_) => {
+				// 	self.last_heartbeat = Instant::now();
+				// }
+				match msg {
+					axum::extract::ws::Message::Text(text) => {
+						let Ok(j) = serde_json::from_str::<JsonFromUser>(&text) else {
+							break;
+						};
+						match j {
+							JsonFromUser::heartbeat(_) => {
+								last_heartbeat = Instant::now();
+							}
+						}
+						// println!("text = '{text}'");
+					}
+					axum::extract::ws::Message::Binary(b) => {
+						let Ok(pos) = Position::get(&b) else {
+							break;
+						};
+						let _ = to_server.send(ToServerMessage::PositionUpdate((id, pos)));
+					}
+					_ => (),
 				}
 			}
 		}
 	}
 
-	// TODO:
-	to_server.send(ToServerMessage::Remove(id));
-
-	/*
-	tasks.spawn(async move {
-		while let Ok(_) = ws_s.send(axum::extract::ws::Message::Text(":3".into())).await {
-			tokio::time::sleep(Duration::from_mins(1)).await;
-		}
-	});
-	tasks.spawn(async move {
-		while let Some(Ok(msg)) = recv.next().await {
-			if let Message::Close(_) = msg {
-				break;
-			}
-		}
-	});
-
-	while let Some(_) = tasks.join_next().await {
-		tasks.abort_all();
-	}
-	*/
+	let _ = to_server.send(ToServerMessage::Remove(id));
 }
 
-pub(super) async fn handler(
+async fn handler(
 	ws: WebSocketUpgrade,
 	Query(params): Query<HashMap<String, String>>,
 	State(state): State<AxumState>,
@@ -433,19 +419,38 @@ pub(super) async fn handler(
 async fn server(mut from_ws: UnboundedReceiver<ToServerMessage>) -> anyhow::Result<()> {
 	let mut state = ServerState::default();
 
-	while let Some(msg_from_ws) = from_ws.recv().await {
-		match msg_from_ws {
-			ToServerMessage::Connect(to_ws) => {
-				state.handle_connect(to_ws);
+	loop {
+		tokio::select! {
+			_ = state.broadcast_starter.recv() => {
+				if state.broadcast_queued {
+					state.broadcast_queued = false;
+					state.last_broadcast = Instant::now();
+					if cfg!(debug_assertions) {
+						println!("broadcast {:?}", state.last_broadcast);
+					}
+					state.broadcast_cursors();
+				}
 			}
-			ToServerMessage::Remove(id) => {
-				state.handle_remove(id);
-			}
-			ToServerMessage::PositionUpdate((id, position)) => {
-				state.handle_position_update(id, position);
+			msg = from_ws.recv() => {
+				let Some(msg) = msg else {
+					break;
+				};
+				match msg {
+					ToServerMessage::Connect((to_ws, connection_id_tx)) => {
+						state.handle_connect(to_ws, connection_id_tx);
+					}
+					ToServerMessage::Remove(id) => {
+						state.handle_remove(id);
+					}
+					ToServerMessage::PositionUpdate((id, position)) => {
+						state.handle_position_update(id, position);
+					}
+				}
 			}
 		}
 	}
+
+	state.queue_timer_task.abort();
 
 	anyhow::bail!("how are we here...");
 }
@@ -463,13 +468,13 @@ pub(super) async fn run() -> anyhow::Result<()> {
 		.route("/party/rock", any(handler))
 		.with_state(state);
 
-	#[cfg(debug_assertions)]
-	tasks.spawn(axum::serve(tokio::net::TcpListener::bind("127.0.0.1:8081").await?, app));
-	#[cfg(not(debug_assertions))]
-	tasks.spawn(axum::serve(
-		crate::get_uds("/tmp/c.ookie.click/cursor-party.sock".into()).await?,
-		app,
-	));
+	if cfg!(debug_assertions) {
+		let socket = tokio::net::TcpListener::bind("127.0.0.1:2001").await?;
+		tasks.spawn(async move { Ok(axum::serve(socket, app).await?) });
+	} else {
+		let socket = crate::get_uds("/tmp/c.ookie.click/cursor-party.sock".into()).await?;
+		tasks.spawn(async move { Ok(axum::serve(socket, app).await?) });
+	}
 
 	while let Some(t) = tasks.join_next().await {
 		t??;
