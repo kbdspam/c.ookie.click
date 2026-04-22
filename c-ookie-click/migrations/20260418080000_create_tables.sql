@@ -19,12 +19,12 @@ CREATE TABLE IF NOT EXISTS boards (
 	, name TEXT NOT NULL
 );
 
-CREATE TABLE joinedboards (
+CREATE TABLE IF NOT EXISTS joinedboards (
 	clicker INT NOT NULL
 	, board INT NOT NULL
 	, UNIQUE(clicker, board) ON CONFLICT IGNORE
 );
 
-CREATE INDEX cookie_clickers ON clickers(cookie);
-CREATE INDEX boards_cookie ON boards(cookie);
-CREATE INDEX cookie_joinedboards ON joinedboards(clicker);
+CREATE INDEX IF NOT EXISTS cookie_clickers ON clickers(cookie);
+CREATE INDEX IF NOT EXISTS boards_cookie ON boards(cookie);
+CREATE INDEX IF NOT EXISTS cookie_joinedboards ON joinedboards(clicker);
