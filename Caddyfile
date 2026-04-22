@@ -13,12 +13,20 @@ ookie.click {
 
 c.ookie.click {
 	# TODO: rate-limit by IP so wstimer actually works...
-	reverse_proxy unix+h2c://tmp/c.ookie.click/main.sock
+	reverse_proxy unix//tmp/c.ookie.click/main.sock {
+		transport http {
+			versions h2c 2
+		}
+	}
 }
 
 cursor-party-0.c.ookie.click {
 	handle {
-		reverse_proxy unix+h2c://tmp/c.ookie.click/cursor-party.sock
+		reverse_proxy unix//tmp/c.ookie.click/cursor-party.sock {
+			transport http {
+				versions h2c 2
+			}
+		}
 	}
 	import /etc/caddy/simulcast.conf*
 }
