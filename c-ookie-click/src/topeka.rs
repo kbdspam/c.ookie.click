@@ -1,6 +1,6 @@
 // $ units "tempC($(curl -s "https://api.weather.gov/stations/KTOP/observations/latest" | jq ."properties.temperature.value"))" "tempF" | xargs
 
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 
 use serde::Deserialize;
 
@@ -27,9 +27,12 @@ async fn do_it() -> anyhow::Result<f64> {
 }
 
 pub(super) async fn run() -> anyhow::Result<()> {
+	let topeka_file = PathBuf::from(&std::env::var("PUBLICDIR").unwrap_or_else(|_| "../public".to_owned()))
+		.join("c.ookie.click/er/topeka");
 	loop {
 		if let Ok(fahrenheit) = do_it().await {
-			println!("{fahrenheit}");
+			println!("topeka = {fahrenheit}F");
+			tokio::fs::write(&topeka_file, format!("{fahrenheit}")).await?;
 		}
 		tokio::time::sleep(Duration::from_mins(10)).await;
 	}
