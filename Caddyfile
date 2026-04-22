@@ -5,6 +5,9 @@
 	# interface. If admin over TCP is turned on one should make sure
 	# implications are well understood.
 	admin "unix//run/caddy/admin.socket"
+	servers {
+		protocols h1 h2
+	}
 }
 
 ookie.click {
