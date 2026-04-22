@@ -19,6 +19,7 @@ services:
     environment:
       - DBDIR=/data
       - PUBLICDIR=/site
+      - RUST_BACKTRACE=full
     ports:
       - "127.0.0.1:2001:2001/tcp"
       - "127.0.0.1:8080:8080/tcp"
