@@ -13,6 +13,11 @@ ookie.click {
 
 c.ookie.click {
 	# TODO: rate-limit by IP so wstimer actually works...
+
+	# fucking caddy & not working with websockets over http2...
+	handle /er/leaderboard/wstimer {
+		reverse_proxy unix//tmp/c.ookie.click/main.sock
+	}
 	reverse_proxy unix//tmp/c.ookie.click/main.sock {
 		transport http {
 			versions h2c 2
@@ -21,6 +26,10 @@ c.ookie.click {
 }
 
 cursor-party-0.c.ookie.click {
+	# fucking caddy & not working with websockets over http2...
+	handle /party/rock {
+		reverse_proxy unix//tmp/c.ookie.click/cursor-party.sock
+	}
 	handle {
 		reverse_proxy unix//tmp/c.ookie.click/cursor-party.sock {
 			transport http {
