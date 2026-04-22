@@ -17,7 +17,11 @@ mod wstimer;
 async fn get_uds(path: PathBuf) -> anyhow::Result<UnixListener> {
 	let _ = tokio::fs::remove_file(&path).await;
 	tokio::fs::create_dir_all(path.parent().unwrap()).await?;
-	Ok(UnixListener::bind(path)?)
+	let listener = UnixListener::bind(&path)?;
+	let mut perms = tokio::fs::metadata(&path).await?.permissions();
+	perms.set_readonly(false);
+	tokio::fs::set_permissions(&path, perms).await?;
+	Ok(listener)
 }
 
 fn main() -> anyhow::Result<()> {
