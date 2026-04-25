@@ -31,7 +31,7 @@ pub(super) async fn run() -> anyhow::Result<()> {
 		.join("c.ookie.click/er/topeka");
 	loop {
 		if let Ok(fahrenheit) = do_it().await {
-			println!("topeka = {fahrenheit}F");
+			//println!("topeka = {fahrenheit:.1}F");
 			tokio::fs::write(&topeka_file, format!("{fahrenheit}")).await?;
 		}
 		tokio::time::sleep(Duration::from_mins(10)).await;
