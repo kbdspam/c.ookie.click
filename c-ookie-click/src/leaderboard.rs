@@ -108,7 +108,7 @@ fn randcookie() -> String {
 async fn disabled_registering() -> Result<(), (StatusCode, String)> {
 	let path =
 		PathBuf::from(&std::env::var("DBPATH").unwrap_or_else(|_| "../data".to_owned())).join("disabled_registering");
-	if tokio::fs::try_exists(path).await.unwrap_or(false) {
+	if !tokio::fs::try_exists(path).await.unwrap_or(false) {
 		Ok(())
 	} else {
 		Err((StatusCode::INTERNAL_SERVER_ERROR, "db broken".to_owned()))
@@ -118,7 +118,7 @@ async fn disabled_registering() -> Result<(), (StatusCode, String)> {
 async fn disabled_leaderboard_create() -> Result<(), (StatusCode, String)> {
 	let path = PathBuf::from(&std::env::var("DBPATH").unwrap_or_else(|_| "../data".to_owned()))
 		.join("disabled_leaderboard_create");
-	if tokio::fs::try_exists(path).await.unwrap_or(false) {
+	if !tokio::fs::try_exists(path).await.unwrap_or(false) {
 		Ok(())
 	} else {
 		Err((StatusCode::INTERNAL_SERVER_ERROR, "db broken".to_owned()))
